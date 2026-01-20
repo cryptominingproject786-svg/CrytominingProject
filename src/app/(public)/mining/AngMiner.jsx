@@ -1,57 +1,66 @@
 import Image from "next/image";
+import InvestModal from "./InvestModal";
+import { openPurchaseModal } from "../../../Redux/Slices/MiningSlice";
+import { useDispatch } from "react-redux";
+
 
 const miners = [
     {
-        name: "ANG Miner S15",
+        name: "Mining Machine S15",
         image: "/ANG.png",
         returnRate: "26.00%",
-        cycle: "30 Day",
+        cycle: "Daily",
         progress: "82.75%",
-        price: "10.00 ~ 999.00 USDT",
+        price: "10.00 ~ 100.00 USDT",
     },
     {
-        name: "ANG Miner RIG-819",
+        name: "Mining RIG-819",
         image: "/Rig.png",
         returnRate: "28.00%",
-        cycle: "33 Day",
+        cycle: "7 Days",
         progress: "56.30%",
-        price: "98.00 ~ 999.00 USDT",
+        price: "100.00 ~ 1000.00 USDT",
     },
     {
-        name: "ANG Minerbase L11",
+        name: "Minerbase Machine L11",
         image: "/ANG.png",
         returnRate: "31.00%",
-        cycle: "35Day",
+        cycle: "15 Days",
         progress: "40.84%",
-        price: "598.00 ~ 9,999.00 USDT",
+        price: "500.00 ~ 1000.00 USDT",
     },
     {
-        name: "ANG Miner D9",
+        name: "Mining Machine D9",
         image: "/D9.png",
         returnRate: "35.00%",
-        cycle: "40Day",
+        cycle: "21Day",
         progress: "44.30%",
-        price: "1,688.00 ~ 99,999.00 USDT",
+        price: "1000.00 ~ 10,000.00 USDT",
     },
     {
-        name: "ANG Miner S21",
+        name: "Mining RIG S21",
         image: "/S21.png",
         returnRate: "41.00%",
-        cycle: "50Day",
+        cycle: "28",
         progress: "38.41%",
-        price: "5,688.00 ~ 99,999.00 USDT",
+        price: "2000.00 ~ 20000.00 USDT",
     },
     {
-        name: "ANG Miner L9",
+        name: "Full Mining Machine L9",
         image: "/L9.png",
         returnRate: "48.00%",
         cycle: "50Day",
         progress: "39.76%",
-        price: "15,888.00 ~ 999,999.00 USDT",
+        price: "5000.00 ~ 50000.00 USDT",
     },
 ];
 
 export default function MiningOptions() {
+    const dispatch = useDispatch();
+
+    const handleModal = (miner) => {
+        dispatch(openPurchaseModal(miner));
+    }
     return (
         <section
             aria-labelledby="mining-options-heading"
@@ -126,6 +135,7 @@ export default function MiningOptions() {
                                 <button
                                     aria-label={`Buy ${miner.name} mining plan`}
                                     className="bg-black text-white px-6 py-2 rounded-full hover:bg-gray-900 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                                    onClick={() => handleModal(miner)}
                                 >
                                     Buy now
                                 </button>
@@ -133,6 +143,8 @@ export default function MiningOptions() {
                         </div>
                     </article>
                 ))}
+                <InvestModal />
+
             </div>
         </section>
     );

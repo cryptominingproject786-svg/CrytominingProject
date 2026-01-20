@@ -44,7 +44,8 @@ export default function JoinPage() {
                     return;
                 }
 
-                router.push("/mining");
+                // router.push("/mining");
+                router.push("/User");
             } catch {
                 setError("Network error. Please try again.");
             }

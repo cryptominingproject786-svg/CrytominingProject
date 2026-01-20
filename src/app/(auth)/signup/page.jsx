@@ -48,7 +48,8 @@ export default function SignupPage() {
                 const payload = await res.json().catch(() => ({}));
 
                 if (res.ok) {
-                    router.push("/mining");
+                    // router.push("/mining");
+                    router.push("/User")
                     return;
                 }
 
