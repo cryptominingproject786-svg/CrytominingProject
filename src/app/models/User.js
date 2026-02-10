@@ -87,6 +87,14 @@ const UserSchema = new mongoose.Schema(
             default: 0,
         },
 
+        // Recharges — keep references to `Recharge` documents for admin dashboards
+        recharges: [{ type: mongoose.Schema.Types.ObjectId, ref: "Recharge" }],
+        lastRechargeAt: { type: Date },
+        lastRechargeAmount: { type: Number },
+        lastRechargeTxId: { type: String },
+        lastRechargeSlipFilename: { type: String },
+        lastRechargeSlipSize: { type: Number },
+
         // Security & tracking
         lastLogin: {
             type: Date,
