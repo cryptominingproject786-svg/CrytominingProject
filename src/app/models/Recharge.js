@@ -5,7 +5,13 @@ const RechargeSchema = new mongoose.Schema(
         user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
         network: { type: String, required: true },
         amount: { type: Number, required: true },
-        txId: { type: String, required: true, index: true },
+        txId: {
+            type: String,
+            required: true,
+            trim: true,
+            unique: true,
+        },
+
 
         // Submitter metadata (fallback when the uploader is not authenticated)
         submitterEmail: { type: String, trim: true, lowercase: true },

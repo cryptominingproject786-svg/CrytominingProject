@@ -91,6 +91,19 @@ export async function POST(req) {
         if (buffer.length > MAX_BYTES) {
             return NextResponse.json({ error: "Image too large" }, { status: 413 });
         }
+        // 🔒 Prevent duplicate recharge by txId
+        const existingRecharge = await Recharge.findOne({
+            txId: txId.trim(),
+            amount: nAmount,
+        });
+
+        if (existingRecharge) {
+            return NextResponse.json(
+                { error: "Recharge with this TxID already submitted" },
+                { status: 400 }
+            );
+        }
+
 
         const recharge = await Recharge.create({
             user: userId,
@@ -198,10 +211,14 @@ export async function GET(req) {
 
         const recharges = await Recharge.find({ user: userId }).sort({ createdAt: -1 }).limit(200).lean();
 
-        const items = recharges.map((r) => {
-            const slipData = r.slip?.data ? `data:${r.slip.contentType};base64,${Buffer.from(r.slip.data).toString("base64")}` : null;
-            return { ...r, slip: { ...r.slip, dataUrl: slipData } };
-        });
+        const items = recharges.map((r) => ({
+            ...r,
+            slip: {
+                hasImage: !!r.slip?.data,
+                filename: r.slip?.filename,
+            },
+        }));
+
 
         return NextResponse.json({ data: items }, { status: 200 });
     } catch (err) {

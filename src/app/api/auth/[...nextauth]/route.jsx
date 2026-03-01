@@ -78,6 +78,8 @@ const authOptions = {
             // Initial sign-in
             if (user) {
                 console.log("JWT USER:", user);
+                token.id = user.id;   // ✅ Store id explicitly
+
 
                 token.role = user.role ?? "user";
                 token.email = user.email;
@@ -96,6 +98,8 @@ const authOptions = {
          */
         async session({ session, token }) {
             session.user = {
+                id: token.id,      // ✅ now use token.id
+
                 id: token.sub,
                 email: token.email,
                 role: token.role,

@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import connectDB from "../../../lib/mongoDb";
 import Recharge from "../../../models/Recharge";
+import User from "../../../models/User";
 import { getToken } from "next-auth/jwt";
 
 export async function GET(req) {
     try {
-        const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+        const token = await getToken({
+            req,
+            secret: process.env.NEXTAUTH_SECRET,
+        });
+
         if (!token || token.role !== "admin") {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -22,46 +27,43 @@ export async function GET(req) {
             .lean();
 
         const items = recharges.map((r) => {
-            const slipData = r.slip?.data ? `data:${r.slip.contentType};base64,${Buffer.from(r.slip.data).toString("base64")}` : null;
-            return { ...r, slip: { ...r.slip, dataUrl: slipData } };
+            let slipData = null;
+
+            if (r.slip?.data && r.slip?.contentType) {
+                let base64String = null;
+
+                // Case 1: Proper Buffer
+                if (Buffer.isBuffer(r.slip.data)) {
+                    base64String = r.slip.data.toString("base64");
+                }
+
+                // Case 2: MongoDB Binary object (when using lean())
+                else if (r.slip.data?.buffer) {
+                    base64String = Buffer.from(r.slip.data.buffer).toString("base64");
+                }
+
+                // Case 3: $binary format
+                else if (r.slip.data?.$binary?.base64) {
+                    base64String = r.slip.data.$binary.base64;
+                }
+
+                if (base64String) {
+                    slipData = `data:${r.slip.contentType};base64,${base64String}`;
+                }
+            }
+
+
+            return {
+                ...r,
+                slip: slipData ? { dataUrl: slipData } : null,
+            };
         });
 
+
         return NextResponse.json({ data: items }, { status: 200 });
+
     } catch (err) {
         console.error("/api/recharge/admin error", err);
-        return NextResponse.json({ error: "Server error" }, { status: 500 });
-    }
-}
-
-export async function POST(req) {
-    try {
-        const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-        if (!token || token.role !== "admin") {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        await connectDB();
-
-        // Find recharges that are not linked to a user but have a submitterEmail
-        const candidates = await Recharge.find({ $or: [{ user: { $exists: false } }, { user: null }], submitterEmail: { $exists: true, $ne: null } }).lean();
-
-        let linked = 0;
-        for (const r of candidates) {
-            try {
-                const user = await (await import("../../../models/User")).default.findOne({ email: String(r.submitterEmail).trim().toLowerCase() }).select("_id");
-                if (user) {
-                    await (await import("../../../models/User")).default.updateOne({ _id: user._id }, { $addToSet: { recharges: r._id }, $set: { lastRechargeAt: r.createdAt } });
-                    await Recharge.updateOne({ _id: r._id }, { $set: { user: user._id } });
-                    linked += 1;
-                }
-            } catch (e) {
-                console.warn("backfill: failed for recharge", r._id, e);
-            }
-        }
-
-        return NextResponse.json({ status: "ok", linked }, { status: 200 });
-    } catch (err) {
-        console.error("/api/recharge/admin/backfill error", err);
         return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
 }
