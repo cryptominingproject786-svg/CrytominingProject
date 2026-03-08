@@ -160,24 +160,36 @@ export default function InvestModal() {
             }
 
             // ✅ Update modal balance with the new balance returned from API
-            const newBalance = json.data?.newBalance ?? (balance - numAmount);
-            setBalance(newBalance);
+           // Update modal balance
+const newBalance = json.data?.newBalance ?? (balance - numAmount);
+setBalance(newBalance);
 
-            setInvestmentMessage({
-                type: "success",
-                text: `Investment of $${numAmount.toFixed(2)} created! Remaining balance: $${Number(newBalance).toFixed(2)}`,
-            });
+setInvestmentMessage({
+    type: "success",
+    text: `Investment of $${numAmount.toFixed(2)} created! Remaining balance: $${Number(newBalance).toFixed(2)}`
+});
 
-            setAmount("");
+setAmount("");
 
-            // ✅ Fire custom event → UserData listens and re-fetches its balance
-            window.dispatchEvent(new Event("investmentSuccess"));
+// Notify dashboard
+window.dispatchEvent(new Event("investmentSuccess"));
 
-            // Close modal and go to dashboard after 2s
-            setTimeout(() => {
-                dispatch(closePurchaseModal());
-                router.push("/dashboard");
-            }, 2000);
+// Redirect instantly
+dispatch(closePurchaseModal());
+router.push("/dashboard");
+
+// Credit profit after 1 minute
+setTimeout(() => {
+    if (typeof window !== "undefined") {
+        window.__pendingProfitCredit =
+            (window.__pendingProfitCredit || 0) + dailyProfit;
+    }
+
+    window.dispatchEvent(
+        new CustomEvent("profitCredit", { detail: dailyProfit })
+    );
+}, 6000);
+
 
         } catch (err) {
             console.error("Investment error:", err);
@@ -284,8 +296,8 @@ export default function InvestModal() {
                 {/* Message */}
                 {investmentMessage && (
                     <div className={`mb-4 p-3 rounded-lg text-sm ${investmentMessage.type === "success"
-                            ? "bg-green-900/50 text-green-300"
-                            : "bg-red-900/50 text-red-300"
+                        ? "bg-green-900/50 text-green-300"
+                        : "bg-red-900/50 text-red-300"
                         }`}>
                         {investmentMessage.text}
                     </div>

@@ -11,10 +11,6 @@ export default function Navbar() {
     const [loading, setLoading] = useState(false);
     const profileRef = useRef(null);
 
-    // ── Derive display state directly from session ──
-    // role="user"  → isRegularUser=true  → show username + dropdown
-    // role="admin" → isRegularUser=false → show Join / Sign Up
-    // not logged in→ isRegularUser=false → show Join / Sign Up
     const isRegularUser = status === "authenticated" && session?.user?.role === "user";
     const isAdmin = status === "authenticated" && session?.user?.role === "admin";
 
@@ -30,7 +26,7 @@ export default function Navbar() {
         const email = session?.user?.email;
 
         // Stop if role or email missing
-        if (!role || !email) {
+        if (!role || !email || status !== "authenticated") {
             setProfileData(null);
             return;
         }
@@ -65,6 +61,14 @@ export default function Navbar() {
                 });
 
                 if (!isMounted) return;
+
+                if (res.status === 404) {
+                    // No profile in DB yet — normal case
+                    console.log("[Navbar] No profile found in database.");
+                    setProfileData(null);
+                    setLoading(false);
+                    return;
+                }
 
                 if (!res.ok) {
                     console.error("[Navbar] Profile fetch failed:", res.status);

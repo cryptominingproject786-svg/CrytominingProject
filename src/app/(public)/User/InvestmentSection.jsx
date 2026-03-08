@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchStart, fetchSuccess, fetchFailure } from "../redux/slices/investmentSlice"; // ✅ adjust path to match your project
+import { fetchStart, fetchSuccess, fetchFailure } from "../../../Redux/Slices/InvestmentSlice"; // correct relative path to Redux slice
 
 const InvestmentCard = ({ inv }) => {
     const start = new Date(inv.startDate);

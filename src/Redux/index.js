@@ -2,11 +2,11 @@
 
 import { configureStore } from "@reduxjs/toolkit";
 import miningReducer from "./Slices/MiningSlice";
-import InvestmentReucer from "./Slices/InvestmentSlice"
+import investmentReducer from "./Slices/InvestmentSlice";
 
 export const store = configureStore({
     reducer: {
         mining: miningReducer,
-        investments: InvestmentReucer
+        investments: investmentReducer,
     },
 });

@@ -133,6 +133,7 @@ export async function GET(req) {
             .limit(100)
             .lean();
 
+        console.info("/api/invest GET fetched", { user: token.id, count: investments.length });
         return NextResponse.json({ data: investments }, { status: 200 });
     } catch (err) {
         console.error("/api/invest GET error", err);

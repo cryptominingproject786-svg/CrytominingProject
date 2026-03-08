@@ -2,6 +2,8 @@
 import React from "react";
 import RechargeModal from "./RechargeModal";
 import { useState, useEffect, useCallback } from "react";
+import InvestmentSection from "../User/InvestmentSection";
+
 
 const activities = [
     {
@@ -47,6 +49,14 @@ function UserData() {
     // Initial fetch
     useEffect(() => {
         fetchUser();
+
+        // if we missed a profitCredit event (user redirected before dashboard mounted)
+        if (typeof window !== "undefined" && window.__pendingProfitCredit) {
+            const amt = window.__pendingProfitCredit;
+            setBalance((b) => Math.round((b + amt) * 100) / 100);
+            console.info("applied pending profitCredit on mount", amt);
+            window.__pendingProfitCredit = 0;
+        }
     }, [fetchUser]);
 
     // ✅ Listen for investment success event fired by InvestModal
@@ -56,6 +66,21 @@ function UserData() {
         window.addEventListener("investmentSuccess", handleInvestmentSuccess);
         return () => window.removeEventListener("investmentSuccess", handleInvestmentSuccess);
     }, [fetchUser]);
+
+    // 👍 When a profitCredit event is dispatched (5s after each purchase), add
+    // the daily profit to the locally displayed balance. This mimics a one‑time
+    // payout and does not touch the server.
+    useEffect(() => {
+        const handleProfit = (e) => {
+            const amt = Number(e?.detail) || 0;
+            if (amt > 0) {
+                setBalance((b) => Math.round((b + amt) * 100) / 100);
+                console.info("balance incremented by profitCredit", amt);
+            }
+        };
+        window.addEventListener("profitCredit", handleProfit);
+        return () => window.removeEventListener("profitCredit", handleProfit);
+    }, []);
 
     const ActionCard = React.memo(function ActionCard({ icon, label, color }) {
         const textColor =
@@ -144,6 +169,9 @@ function UserData() {
                             GO &gt;
                         </button>
                     </section>
+
+                    {/* Investment information */}
+                    <InvestmentSection />
 
                     {/* Action Cards */}
                     <section aria-label="User action cards" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
