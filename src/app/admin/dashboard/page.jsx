@@ -1,5 +1,7 @@
 import connectDB from "../../lib/mongoDb";
 import Recharge from "../../models/Recharge";
+import User from "../../models/User"; // ✅ important
+
 import AdminClient from "../dashbord/AdminClient";
 
 export default async function AdminPage() {

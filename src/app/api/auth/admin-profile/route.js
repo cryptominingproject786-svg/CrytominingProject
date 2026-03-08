@@ -7,13 +7,13 @@ import mongoose from "mongoose";
 
 export async function GET(req) {
     try {
-        console.log("[User-Profile API] 🔵 Request received");
+        console.log("[Admin-Profile API] 🔵 Request received");
 
         await connectDB();
 
         // Get the JWT token
         const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-        console.log("[User-Profile API] 🔑 Token check:", {
+        console.log("[Admin-Profile API] 🔑 Token check:", {
             hasToken: !!token,
             tokenEmail: token?.email,
             tokenRole: token?.role
@@ -21,10 +21,10 @@ export async function GET(req) {
 
         if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        // ✅ IMPORTANT: Block admin users from accessing user profile endpoint
-        if (token.role === "admin") {
-            console.error(`[User-Profile API] ❌ Access denied: token.role='admin' (users only)`);
-            return NextResponse.json({ error: "Forbidden - This endpoint is for users only" }, { status: 403 });
+        // ✅ IMPORTANT: Only admins can access this endpoint
+        if (token.role !== "admin") {
+            console.error(`[Admin-Profile API] ❌ Access denied: token.role=${token.role} (expected 'admin')`);
+            return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
         }
 
         // Determine the user ID
@@ -34,33 +34,33 @@ export async function GET(req) {
             if (found) userId = found._id;
         }
 
-        console.log("[User-Profile API] 🔍 Looking up user:", { userId, email: token.email });
+        console.log("[Admin-Profile API] 🔍 Looking up user:", { userId, email: token.email });
 
-        // Fetch the user with relevant fields
+        // Fetch the admin user with relevant fields
         const user = await User.findById(userId)
             .select("username email role balance investedAmount totalEarnings dailyProfit recharges")
             .lean();
 
         if (!user) {
-            console.error(`[User-Profile API] ❌ User not found: ${userId}`);
+            console.error(`[Admin-Profile API] ❌ User not found: ${userId}`);
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
-        console.log("[User-Profile API] 📦 User found:", {
+        console.log("[Admin-Profile API] 📦 User found:", {
             username: user.username,
             email: user.email,
             role: user.role
         });
 
-        // ✅ IMPORTANT: Verify user has role="user", not admin
-        if (user.role !== "user") {
-            console.error(`[User-Profile API] ❌ Role mismatch: user.role=${user.role} (expected 'user')`);
-            return NextResponse.json({ error: "Forbidden - User account required" }, { status: 403 });
+        // ✅ IMPORTANT: Verify user has role="admin", not user
+        if (user.role !== "admin") {
+            console.error(`[Admin-Profile API] ❌ Role mismatch: user.role=${user.role} (expected 'admin')`);
+            return NextResponse.json({ error: "Forbidden - Admin account required" }, { status: 403 });
         }
 
         // ✅ IMPORTANT: Verify email matches (prevent token hijacking)
         if (user.email !== String(token.email).trim().toLowerCase()) {
-            console.error(`[User-Profile API] ❌ Email mismatch: user.email=${user.email}, token.email=${token.email}`);
+            console.error(`[Admin-Profile API] ❌ Email mismatch: user.email=${user.email}, token.email=${token.email}`);
             return NextResponse.json({ error: "Unauthorized - Email mismatch" }, { status: 401 });
         }
 
@@ -85,7 +85,7 @@ export async function GET(req) {
             }
         };
 
-        console.log("[User-Profile API] ✅ Returning response:", {
+        console.log("[Admin-Profile API] ✅ Returning response:", {
             username: user.username,
             email: user.email,
             role: user.role
@@ -94,7 +94,7 @@ export async function GET(req) {
         return NextResponse.json(responseData, { status: 200 });
 
     } catch (err) {
-        console.error("[User-Profile API] ❌ Server error:", err);
+        console.error("[Admin-Profile API] ❌ Server error:", err);
         return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
 }

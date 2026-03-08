@@ -1,10 +1,5 @@
 import mongoose from "mongoose";
 
-// Defer checking MONGODB_URI until connect time so module import won't throw
-// (helps in dev and when running code that doesn't need DB access).
-// The value is re-read at connection time to pick up env changes in some runtimes.
-
-// Use a stable global cache to avoid reconnecting during HMR
 let cached = global._mongo;
 if (!cached) {
     cached = global._mongo = { conn: null, promise: null };

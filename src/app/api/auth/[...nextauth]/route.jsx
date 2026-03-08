@@ -53,71 +53,65 @@ const authOptions = {
                 const isValid = await bcrypt.compare(credentials.password, user.password);
                 if (!isValid) return null;
 
-                // 6️⃣ Return FULL auth payload (this feeds jwt callback)
+                // 6️⃣ Return full auth payload (feeds jwt callback)
                 return {
                     id: user._id.toString(),
                     email: user.email,
-                    role: user.role ?? "user", // ✅ GUARANTEED
+                    role: user.role ?? "user",
+                    username: user.username,
                 };
             },
         }),
     ],
 
-    // 🔐 JWT-based sessions (required for middleware)
     session: {
         strategy: "jwt",
     },
 
     callbacks: {
-        /**
-         * Runs on:
-         * - initial sign-in
-         * - every subsequent request
-         */
         async jwt({ token, user }) {
-            // Initial sign-in
             if (user) {
-                console.log("JWT USER:", user);
-                token.id = user.id;   // ✅ Store id explicitly
-
-
-                token.role = user.role ?? "user";
+                token.id = user.id || user._id?.toString();
+                token.role = user.role;
                 token.email = user.email;
+                token.username = user.username;
             }
-
-            // Absolute safety net (prevents undefined role)
-            if (!token.role) {
-                token.role = "user";
-            }
-
             return token;
         },
 
-        /**
-         * Client-side session shaping
-         */
         async session({ session, token }) {
-            session.user = {
-                id: token.id,      // ✅ now use token.id
-
-                id: token.sub,
-                email: token.email,
-                role: token.role,
-            };
-
+            if (token) {
+                session.user.id = token.id;
+                session.user.role = token.role;
+                session.user.email = token.email;
+                session.user.username = token.username;
+            }
             return session;
+        },
+
+        async redirect({ url, baseUrl, token }) {
+            // ✅ After sign-in, route based on role
+            // token.role is available here after jwt callback runs
+            if (url.startsWith(baseUrl)) {
+                // Admin → go to admin dashboard
+                if (token?.role === "admin") {
+                    return `${baseUrl}/admin/dashboard`;
+                }
+                // Regular user → go to user dashboard
+                return `${baseUrl}/dashboard`;
+            }
+            return url;
         },
     },
 
-    // 🔑 MUST match middleware secret
     secret: process.env.NEXTAUTH_SECRET,
 
-    // 🧪 Optional: safer error messages
     pages: {
-        signIn: "/admin/Login",
-        error: "/admin/Login",
+        // ✅ Regular users land here when unauthenticated
+        // Admin login is handled separately at /admin/Login
+        signIn: "/join",
+        error: "/join",
     },
-
 };
 
 const handler = NextAuth(authOptions);

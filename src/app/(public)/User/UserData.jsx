@@ -1,9 +1,9 @@
 "use client";
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux"; // ✅ reads from Redux, no fetching here
 import RechargeModal from "./RechargeModal";
-import { useState, useEffect } from "react";
+import InvestmentSection from "./InvestmentSection";
 
-// activities definition lives outside the component so it isn't recreated on every render
 const activities = [
     {
         id: 1,
@@ -25,95 +25,75 @@ const activities = [
     },
 ];
 
+// ✅ Defined outside component — stable, never recreated on render
+const ActionCard = React.memo(function ActionCard({ icon, label, color }) {
+    const textColor =
+        label === "Company Profile" || label === "Premium Features"
+            ? "text-white"
+            : "text-black";
+    return (
+        <article
+            aria-label={label}
+            className={`relative ${color} rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center ${textColor} font-bold cursor-pointer shadow-xl hover:shadow-2xl hover:-translate-y-2 transform transition-all duration-500`}
+        >
+            <span className="text-4xl sm:text-5xl mb-3 sm:mb-4" aria-hidden="true">{icon}</span>
+            <h3 className="text-base sm:text-lg md:text-xl tracking-wide text-center">{label}</h3>
+            <div className="absolute inset-0 rounded-3xl bg-white/10 blur-xl opacity-30 pointer-events-none"></div>
+        </article>
+    );
+});
+
+const ActivityCard = React.memo(function ActivityCard({ a }) {
+    const percent = Math.min(100, Math.round((a.invited / Math.max(1, a.need)) * 100));
+    return (
+        <article
+            aria-labelledby={`activity-title-${a.id}`}
+            role="region"
+            className="relative bg-gradient-to-tr from-gray-800 to-black/70 backdrop-blur-md rounded-3xl p-4 sm:p-6 shadow-2xl border border-yellow-400 hover:scale-105 transform transition duration-500 cursor-pointer"
+        >
+            <div className="absolute right-3 sm:right-4 top-3 sm:top-4 inline-flex items-center justify-center bg-yellow-500 text-black font-bold px-3 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm shadow-lg">
+                {a.reward}
+            </div>
+            <div className="absolute right-3 sm:right-4 bottom-3 sm:bottom-4 flex flex-col gap-2 sm:gap-3">
+                <button aria-label="View calendar" className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-yellow-500 text-black flex items-center justify-center shadow hover:scale-110 transition">📅</button>
+                <button aria-label="View gifts" className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-yellow-500 text-black flex items-center justify-center shadow hover:scale-110 transition">🎁</button>
+            </div>
+            <div className="flex flex-col gap-3 sm:gap-4">
+                <h3 id={`activity-title-${a.id}`} className="text-sm sm:text-base md:text-lg font-bold text-white">{a.title}</h3>
+                {a.note && <p className="text-gray-300 text-xs sm:text-sm md:text-base">{a.note}</p>}
+                <div className="mt-3 sm:mt-4">
+                    <div className="w-full bg-gray-700 rounded-full h-2 sm:h-3 md:h-4 overflow-hidden" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
+                        <div className="h-2 sm:h-3 md:h-4 bg-yellow-400 rounded-full transition-all duration-500" style={{ width: `${percent}%` }}></div>
+                    </div>
+                    <div className="mt-1 text-right text-xs sm:text-sm text-gray-300">{a.invited}/{a.need}</div>
+                </div>
+                <span className="mt-2 inline-block bg-black/70 text-yellow-400 font-semibold px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm shadow">{a.tag}</span>
+            </div>
+        </article>
+    );
+});
+
 function UserData() {
     const [showRecharge, setShowRecharge] = useState(false);
-    const [balance, setBalance] = useState(0);
     const [lastConfirmedAmount, setLastConfirmedAmount] = useState(null);
 
-    // fetch once on mount
+    // ✅ Parent reads investments directly from Redux store — no prop drilling, no fetching
+    const investments = useSelector((state) => state.investments.data);
+
     useEffect(() => {
-        fetchUser();
-    }, []);
-
-    const fetchUser = async () => {
-        try {
-            const res = await fetch("/api/user/me");
-            const json = await res.json();
-
-            if (res.ok) {
-                setBalance(json.data?.balance || 0);
-                if (json.data?.lastConfirmedAmount != null) {
+        async function fetchUser() {
+            try {
+                const res = await fetch("/api/user/me", { credentials: "include" });
+                const json = await res.json();
+                if (res.ok && json.data?.lastConfirmedAmount != null) {
                     setLastConfirmedAmount(json.data.lastConfirmedAmount);
                 }
+            } catch (err) {
+                console.error("fetchUser error:", err);
             }
-        } catch (err) {
-            console.error("Failed to fetch user:", err);
         }
-    };
-
-    // memoized components prevent re-render when props are unchanged
-    const ActionCard = React.memo(function ActionCard({ icon, label, color }) {
-        const textColor = (label === "Company Profile" || label === "Premium Features") ? "text-white" : "text-black";
-        return (
-            <article
-                aria-label={label}
-                className={`relative ${color} rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center ${textColor} font-bold cursor-pointer shadow-xl hover:shadow-2xl hover:-translate-y-2 transform transition-all duration-500`}
-            >
-                <span className="text-4xl sm:text-5xl mb-3 sm:mb-4" aria-hidden="true">{icon}</span>
-                <h3 className="text-base sm:text-lg md:text-xl tracking-wide text-center">{label}</h3>
-                <div className="absolute inset-0 rounded-3xl bg-white/10 blur-xl opacity-30 pointer-events-none"></div>
-            </article>
-        );
-    });
-
-    const ActivityCard = React.memo(function ActivityCard({ a }) {
-        const percent = Math.min(100, Math.round((a.invited / Math.max(1, a.need)) * 100));
-        return (
-            <article
-                aria-labelledby={`activity-title-${a.id}`}
-                role="region"
-                className="relative bg-gradient-to-tr from-gray-800 to-black/70 backdrop-blur-md rounded-3xl p-4 sm:p-6 md:p-6 shadow-2xl border border-yellow-400 hover:scale-105 transform transition duration-500 cursor-pointer"
-            >
-                {/* Reward Badge */}
-                <div className="absolute right-3 sm:right-4 top-3 sm:top-4 inline-flex items-center justify-center bg-yellow-500 text-black font-bold px-3 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm shadow-lg">
-                    {a.reward}
-                </div>
-                {/* Side Action Buttons */}
-                <div className="absolute right-3 sm:right-4 bottom-3 sm:bottom-4 flex flex-col gap-2 sm:gap-3">
-                    <button
-                        aria-label="View calendar"
-                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-yellow-500 text-black flex items-center justify-center shadow hover:scale-110 transition"
-                    >
-                        📅
-                    </button>
-                    <button
-                        aria-label="View gifts"
-                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-yellow-500 text-black flex items-center justify-center shadow hover:scale-110 transition"
-                    >
-                        🎁
-                    </button>
-                </div>
-                <div className="flex flex-col gap-3 sm:gap-4">
-                    <h3 id={`activity-title-${a.id}`} className="text-sm sm:text-base md:text-lg font-bold text-white">{a.title}</h3>
-                    {a.note && <p className="text-gray-300 text-xs sm:text-sm md:text-base">{a.note}</p>}
-                    {/* Progress Bar */}
-                    <div className="mt-3 sm:mt-4">
-                        <div className="w-full bg-gray-700 rounded-full h-2 sm:h-3 md:h-4 overflow-hidden" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={`Progress: ${percent}%`}>
-                            <div
-                                className="h-2 sm:h-3 md:h-4 bg-yellow-400 rounded-full transition-all duration-500"
-                                style={{ width: `${percent}%` }}
-                            ></div>
-                        </div>
-                        <div className="mt-1 text-right text-xs sm:text-sm text-gray-300">{a.invited}/{a.need}</div>
-                    </div>
-                    {/* Tag */}
-                    <span className="mt-2 inline-block bg-black/70 text-yellow-400 font-semibold px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm shadow">{a.tag}</span>
-                </div>
-            </article>
-        );
-    });
-
-    const openRecharge = React.useCallback(() => setShowRecharge(true), []);
+        fetchUser();
+    }, []);
 
     return (
         <>
@@ -125,19 +105,20 @@ function UserData() {
                         <div className="mb-4 sm:mb-0">
                             <h2 id="recharge-section" className="text-black font-extrabold text-xl sm:text-2xl md:text-3xl tracking-wider uppercase">
                                 {lastConfirmedAmount !== null ? `${lastConfirmedAmount} USDT – ` : ""}balance
-                                {/* : {balance} USDT */}
                             </h2>
                             <p className="text-white mt-1 text-sm sm:text-base md:text-lg">Top up your balance instantly</p>
                         </div>
                         <button
                             aria-label="Go to recharge"
                             className="bg-black text-yellow-500 font-bold px-5 sm:px-6 py-2 sm:py-3 rounded-xl shadow-lg hover:shadow-2xl hover:bg-gray-900 transition duration-300 text-sm sm:text-base md:text-lg cursor-pointer"
-
                             onClick={() => setShowRecharge(true)}
                         >
                             GO &gt;
                         </button>
                     </section>
+
+                    {/* ✅ InvestmentSection takes no props — it owns its own fetch & dispatch */}
+                    <InvestmentSection />
 
                     {/* Action Cards */}
                     <section aria-label="User action cards" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
@@ -154,18 +135,17 @@ function UserData() {
                     {/* Activities Section */}
                     <section aria-labelledby="activities-section" className="flex flex-col gap-6">
                         <h2 id="activities-section" className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-yellow-400 uppercase tracking-wide">Activities</h2>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-4 sm:gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                             {activities.map((a) => (
                                 <ActivityCard key={a.id} a={a} />
                             ))}
                         </div>
                     </section>
+
                 </div>
             </main>
-            {showRecharge && (
-                <RechargeModal onClose={() => setShowRecharge(false)} />
-            )}
+
+            {showRecharge && <RechargeModal onClose={() => setShowRecharge(false)} />}
         </>
     );
 }

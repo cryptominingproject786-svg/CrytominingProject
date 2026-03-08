@@ -29,13 +29,33 @@ export default function JoinPage() {
 
         startTransition(async () => {
             try {
-                const res = await signIn("credentials", {
-                    redirect: false,
-                    email: form.email,
-                    password: form.password,
+                // First, check if this email is registered as admin
+                const checkRes = await fetch("/api/auth/check-role", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email: form.email.trim().toLowerCase() }),
                 });
 
-                if (res?.error) {
+                const checkData = await checkRes.json();
+
+                // Check if email is associated with admin role instead of user
+                if (checkData.role === "admin") {
+                    setError("This email is registered as an admin account. Please use the admin login.");
+                    return;
+                }
+
+                const res = await signIn("credentials", {
+                    email: form.email,
+                    password: form.password,
+                    redirect: false,
+                });
+
+                if (!res) {
+                    setError("Unexpected error. Try again.");
+                    return;
+                }
+
+                if (res.error) {
                     setError(
                         res.error === "CredentialsSignin"
                             ? "Invalid email or password"
@@ -44,9 +64,14 @@ export default function JoinPage() {
                     return;
                 }
 
-                // router.push("/mining");
-                router.push("/User");
-            } catch {
+                // ✅ Wait for session to be ready
+                await fetch("/api/auth/session");
+
+                // ✅ Replace instead of push (better UX)
+                window.location.href = "/dashboard";
+
+            } catch (err) {
+                console.error(err);
                 setError("Network error. Please try again.");
             }
         });

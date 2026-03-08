@@ -16,6 +16,22 @@ export default function AdminLoginClient() {
         setError("");
         setLoading(true);
         try {
+            // First, check if user exists and get their role
+            const checkRes = await fetch("/api/auth/check-role", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: email.trim().toLowerCase() }),
+            });
+
+            const checkData = await checkRes.json();
+
+            // Check if email is associated with user role instead of admin
+            if (checkData.role && checkData.role !== "admin") {
+                setLoading(false);
+                setError("This email is registered as a user account. Please use the user login.");
+                return;
+            }
+
             const res = await signIn("credentials", { redirect: false, email, password });
             setLoading(false);
             if (res?.error) {

@@ -10,16 +10,23 @@ export async function middleware(req) {
 
     const { pathname } = req.nextUrl;
 
-    // Protect dashboard (any logged-in user)
-    if (pathname.startsWith("/dashboard") && !token) {
-        return NextResponse.redirect(new URL("/login", req.url));
+    // Protect dashboard (any logged-in user, but NOT admin)
+    if (pathname.startsWith("/dashboard")) {
+        if (!token) {
+            return NextResponse.redirect(new URL("/join", req.url));
+        }
+
+        // Prevent admin accounts from accessing user dashboard
+        if (token.role === "admin") {
+            return NextResponse.redirect(new URL("/admin/dashboard", req.url));
+        }
     }
 
     // Protect admin routes
     if (pathname.startsWith("/admin")) {
         // not logged in
         if (!token) {
-            return NextResponse.redirect(new URL("/admin/login", req.url));
+            return NextResponse.redirect(new URL("/admin/Login", req.url));
         }
 
         // logged in but not admin
@@ -36,4 +43,5 @@ export const config = {
         "/admin((?!/Login|/SignUp).*)",
     ],
 };
+
 

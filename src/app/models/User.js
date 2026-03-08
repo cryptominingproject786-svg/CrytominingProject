@@ -37,6 +37,13 @@ const UserSchema = new mongoose.Schema(
             default: "user",
         },
 
+        // ✅ Wallet balance — credited on recharge confirmation, deducted on investment
+        balance: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
+
         // Investment-related fields
         investedAmount: {
             type: Number,
@@ -87,13 +94,16 @@ const UserSchema = new mongoose.Schema(
             default: 0,
         },
 
-        // Recharges — keep references to `Recharge` documents for admin dashboards
+        // Recharges
         recharges: [{ type: mongoose.Schema.Types.ObjectId, ref: "Recharge" }],
         lastRechargeAt: { type: Date },
         lastRechargeAmount: { type: Number },
         lastRechargeTxId: { type: String },
         lastRechargeSlipFilename: { type: String },
         lastRechargeSlipSize: { type: Number },
+
+        // Investments
+        investments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Investment" }],
 
         // Security & tracking
         lastLogin: {
@@ -103,17 +113,15 @@ const UserSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-/// 🔐 Password Hashing
-// Use async middleware pattern (no `next` param) to avoid "next is not a function" errors
+// 🔐 Password Hashing
 UserSchema.pre("save", async function () {
     if (!this.isModified("password")) return;
     this.password = await bcrypt.hash(this.password, 12);
 });
 
-/// 🔐 Password Compare Method
+// 🔐 Password Compare Method
 UserSchema.methods.comparePassword = async function (password) {
     return bcrypt.compare(password, this.password);
 };
 
-export default mongoose.models.User ||
-    mongoose.model("User", UserSchema);
+export default mongoose.models.User || mongoose.model("User", UserSchema);

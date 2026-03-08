@@ -2,6 +2,8 @@
 
 import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
+
 
 export default function SignupPage() {
     const router = useRouter();
@@ -47,14 +49,20 @@ export default function SignupPage() {
 
                 const payload = await res.json().catch(() => ({}));
 
-                if (res.ok) {
-                    // router.push("/mining");
-                    router.push("/User")
+                if (!res.ok) {
+                    setError(payload?.error || "Registration failed. Try again.");
                     return;
                 }
 
-                setError(payload?.error || "Registration failed. Try again.");
-            } catch {
+                await signIn("credentials", {
+                    email: form.email,
+                    password: form.password,
+                    redirect: true,
+                    callbackUrl: "/dashboard",
+                });
+
+                // setError(payload?.error || "Registration failed. Try again.");
+            } catch (err) {
                 setError("Network error. Please try again.");
             }
         });
