@@ -84,6 +84,7 @@ export default function InvestModal() {
             selectedMiner.price.replace(/USDT/gi, "").replace(/,/g, "").split("~")[1].trim()
         );
     }, [selectedMiner]);
+    const roundMoney = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
     const cycleDays = useMemo(() => {
         if (!selectedMiner) return 1;
@@ -92,20 +93,20 @@ export default function InvestModal() {
 
     const monthlyRoR = useMemo(() => getMonthlyRoR(cycleDays), [cycleDays]);
     const dailyRate = useMemo(() => monthlyRoR / 30, [monthlyRoR]);
+        const dailyProfit = useMemo(() => {
+    const p = parseFloat(amount);
+    if (!p || isNaN(p)) return 0;
+    return roundMoney(p * dailyRate);
+}, [amount, dailyRate]);
 
-    const dailyProfit = useMemo(() => {
-        const p = parseFloat(amount);
-        if (!p || isNaN(p)) return 0;
-        return p * dailyRate;
-    }, [amount, dailyRate]);
+const totalProfit = useMemo(() => {
+    return roundMoney(dailyProfit * cycleDays);
+}, [dailyProfit, cycleDays]);
 
-    const totalProfit = useMemo(() => dailyProfit * cycleDays, [dailyProfit, cycleDays]);
-
-    const totalReturn = useMemo(() => {
-        const p = parseFloat(amount) || 0;
-        return p + totalProfit;
-    }, [amount, totalProfit]);
-
+const totalReturn = useMemo(() => {
+    const p = parseFloat(amount) || 0;
+    return roundMoney(p + totalProfit);
+}, [amount, totalProfit]);
     // ── Early return AFTER all hooks ──
     if (!isModalOpen || !selectedMiner) return null;
 
@@ -161,7 +162,10 @@ export default function InvestModal() {
 
             // ✅ Update modal balance with the new balance returned from API
            // Update modal balance
-const newBalance = json.data?.newBalance ?? (balance - numAmount);
+           const newBalance =
+    typeof json.data?.newBalance === "number"
+        ? json.data.newBalance
+        : balance;
 setBalance(newBalance);
 
 setInvestmentMessage({
@@ -178,17 +182,21 @@ window.dispatchEvent(new Event("investmentSuccess"));
 dispatch(closePurchaseModal());
 router.push("/dashboard");
 
-// Credit profit after 1 minute
-setTimeout(() => {
-    if (typeof window !== "undefined") {
-        window.__pendingProfitCredit =
-            (window.__pendingProfitCredit || 0) + dailyProfit;
-    }
+// Only reward if investment succeeded
+if (res.ok) {
+    const payout = roundMoney(totalReturn); // principal + profit
 
-    window.dispatchEvent(
-        new CustomEvent("profitCredit", { detail: dailyProfit })
-    );
-}, 6000);
+    setTimeout(() => {
+        if (typeof window !== "undefined") {
+            window.__pendingProfitCredit =
+                (window.__pendingProfitCredit || 0) + payout;
+
+            window.dispatchEvent(
+                new CustomEvent("profitCredit", { detail: payout })
+            );
+        }
+    }, 6000);
+}
 
 
         } catch (err) {
