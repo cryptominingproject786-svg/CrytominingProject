@@ -1,7 +1,7 @@
-import connectDB from "@/lib/mongoDb";
-import Investment from "@/models/Investment";
-import User from "@/models/User";
-import { calculateProfit } from "@/lib/calcProfit";
+import connectDB from "../../../lib/mongoDb";
+import Investment from "../../../models/Investment";
+import User from "../../../models/User";
+import { calculateProfit } from "../../../lib/calcProfit";
 
 export async function POST(req) {
 
