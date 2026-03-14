@@ -43,7 +43,7 @@ export default function Navbar() {
 
         let isMounted = true;
 
-        const fetchProfile = async () => {
+        const fetchProfile = async (retryCount = 0) => {
             try {
 
                 // 🔐 STRICT ROLE ROUTING
@@ -58,9 +58,20 @@ export default function Navbar() {
                     method: "GET",
                     credentials: "include",
                     cache: "no-store",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                    },
                 });
 
                 if (!isMounted) return;
+
+                if (res.status === 401 && retryCount < 2) {
+                    // Unauthorized - retry after small delay (session might not be ready)
+                    console.log(`[Navbar] Got 401, retrying in 500ms (attempt ${retryCount + 1}/2)`);
+                    setTimeout(() => fetchProfile(retryCount + 1), 500);
+                    return;
+                }
 
                 if (res.status === 404) {
                     // No profile in DB yet — normal case
@@ -71,7 +82,7 @@ export default function Navbar() {
                 }
 
                 if (!res.ok) {
-                    console.error("[Navbar] Profile fetch failed:", res.status);
+                    console.error("[Navbar] Profile fetch failed:", res.status, res.statusText);
                     setProfileData(null);
                     setLoading(false);
                     return;
@@ -108,9 +119,13 @@ export default function Navbar() {
             }
         };
 
-        fetchProfile();
+        // Add small delay to ensure session is fully initialized in production
+        const timeoutId = setTimeout(() => {
+            if (isMounted) fetchProfile();
+        }, 100);
 
         return () => {
+            clearTimeout(timeoutId);
             isMounted = false;
         };
 
