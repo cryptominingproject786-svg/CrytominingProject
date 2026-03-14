@@ -31,12 +31,24 @@ export default function AdminSignUpClient() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username, email, password, passwordConfirm, adminCode }),
             });
-            const json = await res.json();
+
+            // read the response as text so we can handle non-JSON gracefully
+            const text = await res.text();
+            let json;
+            try {
+                json = text ? JSON.parse(text) : {};
+            } catch (parseErr) {
+                // if we got HTML or anything unexpected, log it and throw so it is caught below
+                console.error("Unexpected non-JSON response from /api/auth/admin/register:", text);
+                throw new Error("Invalid JSON response");
+            }
+
             setLoading(false);
             if (!res.ok) {
-                setError(json.error || "Registration failed");
+                setError(json?.error || "Registration failed");
                 return;
             }
+
             setSuccess("Admin created. Signing you in...");
 
             await signIn("credentials", {

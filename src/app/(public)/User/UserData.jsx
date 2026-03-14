@@ -76,23 +76,44 @@ const ActivityCard = React.memo(function ActivityCard({ a }) {
 function UserData() {
     const [showRecharge, setShowRecharge] = useState(false);
     const [lastConfirmedAmount, setLastConfirmedAmount] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     // ✅ Parent reads investments directly from Redux store — no prop drilling, no fetching
     const investments = useSelector((state) => state.investments.data);
 
     useEffect(() => {
-        async function fetchUser() {
+
+        const loadUser = async () => {
+            setLoading(true);
             try {
-                const res = await fetch("/api/user/me", { credentials: "include" });
+                const res = await fetch("/api/user/me");
                 const json = await res.json();
-                if (res.ok && json.data?.lastConfirmedAmount != null) {
-                    setLastConfirmedAmount(json.data.lastConfirmedAmount);
+
+                if (json.data?.totalAssets != null) {
+                    // Safely format the balance
+                    const balance = Number(json.data.totalAssets) || 0;
+                    const formatted = balance.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    setLastConfirmedAmount(formatted);
+                } else {
+                    setLastConfirmedAmount("0.00");
                 }
-            } catch (err) {
-                console.error("fetchUser error:", err);
+            } catch (error) {
+                console.error("Failed to load user data:", error);
+                setLastConfirmedAmount("0.00");
+            } finally {
+                setLoading(false);
             }
-        }
-        fetchUser();
+        };
+
+        loadUser();
+
+        const interval = setInterval(loadUser, 5000);
+
+        return () => clearInterval(interval);
+
     }, []);
 
     return (
@@ -104,7 +125,7 @@ function UserData() {
                     <section aria-labelledby="recharge-section" className="relative bg-yellow-500 rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center shadow-2xl transform transition duration-500 hover:scale-105 cursor-pointer">
                         <div className="mb-4 sm:mb-0">
                             <h2 id="recharge-section" className="text-black font-extrabold text-xl sm:text-2xl md:text-3xl tracking-wider uppercase">
-                                {lastConfirmedAmount !== null ? `${lastConfirmedAmount} USDT – ` : ""}balance
+                                {loading ? "Loading..." : (lastConfirmedAmount ? `${lastConfirmedAmount} USDT – ` : "")}balance
                             </h2>
                             <p className="text-white mt-1 text-sm sm:text-base md:text-lg">Top up your balance instantly</p>
                         </div>

@@ -8,7 +8,7 @@ const miners = [
     {
         name: "Mining Machine S15",
         image: "/ANG.png",
-        returnRate: "26.00%",
+        returnRate: "2.333%",
         cycle: "Daily",
         progress: "82.75%",
         price: "10.00 ~ 100.00 USDT",
@@ -16,7 +16,7 @@ const miners = [
     {
         name: "Mining RIG-819",
         image: "/Rig.png",
-        returnRate: "28.00%",
+        returnRate: "2.500%",
         cycle: "7 Days",
         progress: "56.30%",
         price: "100.00 ~ 1000.00 USDT",
@@ -24,7 +24,7 @@ const miners = [
     {
         name: "Minerbase Machine L11",
         image: "/ANG.png",
-        returnRate: "31.00%",
+        returnRate: "2.700%",
         cycle: "15 Days",
         progress: "40.84%",
         price: "500.00 ~ 1000.00 USDT",
@@ -32,7 +32,7 @@ const miners = [
     {
         name: "Mining Machine D9",
         image: "/D9.png",
-        returnRate: "35.00%",
+        returnRate: "2.850%",
         cycle: "21Day",
         progress: "44.30%",
         price: "1000.00 ~ 10,000.00 USDT",
@@ -40,7 +40,7 @@ const miners = [
     {
         name: "Mining RIG S21",
         image: "/S21.png",
-        returnRate: "41.00%",
+        returnRate: "3.500%",
         cycle: "28",
         progress: "38.41%",
         price: "2000.00 ~ 20000.00 USDT",
@@ -48,7 +48,7 @@ const miners = [
     {
         name: "Full Mining Machine L9",
         image: "/L9.png",
-        returnRate: "48.00%",
+        returnRate: "4.00%",
         cycle: "50Day",
         progress: "39.76%",
         price: "5000.00 ~ 50000.00 USDT",

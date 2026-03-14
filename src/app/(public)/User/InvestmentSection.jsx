@@ -8,9 +8,13 @@ const InvestmentCard = ({ inv }) => {
     const end = new Date(inv.maturityDate);
     const now = new Date();
 
-    const totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-    const passedDays = Math.max(0, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
-    const percent = Math.min(100, Math.round((passedDays / totalDays) * 100));
+    const totalSeconds = (end - start) / 1000;
+    const passedSeconds = Math.max(0, (now - start) / 1000);
+
+    const percent = Math.min(
+        100,
+        Math.round((passedSeconds / totalSeconds) * 100)
+    );
 
     const statusColor = inv.status === "active" ? "bg-green-500" : "bg-gray-500";
 
@@ -41,7 +45,9 @@ const InvestmentCard = ({ inv }) => {
                 </div>
                 <div>
                     <p className="text-gray-400">Cycle</p>
-                    <p className="font-bold text-white">{inv.investmentCycle} Days</p>
+                    <p className="font-bold text-white">
+                        {Math.ceil((end - start) / (1000 * 60 * 60 * 24))} Days
+                    </p>
                 </div>
                 <div>
                     <p className="text-gray-400">Start</p>
@@ -53,7 +59,7 @@ const InvestmentCard = ({ inv }) => {
                 </div>
                 <div>
                     <p className="text-gray-400">Withdrawn</p>
-                    <p className="font-bold text-white">{inv.profitWithdrawn} USDT</p>
+                    <p className="font-bold text-white">{inv.claimedProfit} USDT</p>
                 </div>
             </div>
 

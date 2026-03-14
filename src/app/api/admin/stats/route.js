@@ -1,0 +1,91 @@
+import { NextResponse } from "next/server";
+import connectDB from "../../../lib/mongoDb";
+import User from "../../../models/User";
+import Investment from "../../../models/Investment";
+import Recharge from "../../../models/Recharge";
+import { getToken } from "next-auth/jwt";
+
+export async function GET(req) {
+    try {
+        const token = await getToken({
+            req,
+            secret: process.env.NEXTAUTH_SECRET,
+        });
+
+        if (!token || token.role !== "admin") {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        await connectDB();
+
+        // Get all stats in parallel
+        const [totalUsers, investmentStats, pendingWithdraw, totalDeposited] = await Promise.all([
+            // Total users with role 'user'
+            User.countDocuments({ role: "user" }),
+
+            // Investment stats
+            Investment.aggregate([
+                { $match: { status: "active" } },
+                {
+                    $group: {
+                        _id: null,
+                        totalAmount: { $sum: "$amount" },
+                        totalDailyProfit: { $sum: "$dailyProfit" },
+                        count: { $sum: 1 },
+                        avgAmount: { $avg: "$amount" },
+                    },
+                },
+            ]),
+
+            // Pending recharges
+            Recharge.aggregate([
+                { $match: { status: "pending" } },
+                {
+                    $group: {
+                        _id: null,
+                        total: { $sum: "$amount" },
+                    },
+                },
+            ]),
+
+            // Confirmed recharges
+            Recharge.aggregate([
+                { $match: { status: "confirmed" } },
+                {
+                    $group: {
+                        _id: null,
+                        total: { $sum: "$amount" },
+                    },
+                },
+            ]),
+        ]);
+
+        const result = {
+            totalUsers: totalUsers || 0,
+            totalInvestment: investmentStats[0]?.totalAmount || 0,
+            totalDailyProfit: investmentStats[0]?.totalDailyProfit || 0,
+            totalPendingWithdraw: pendingWithdraw[0]?.total || 0,
+            totalDeposited: totalDeposited[0]?.total || 0,
+            activeInvestments: investmentStats[0]?.count || 0,
+            avgInvestmentAmount: investmentStats[0]?.avgAmount || 0,
+        };
+
+        return NextResponse.json({ data: result }, { status: 200 });
+    } catch (err) {
+        console.error("/api/admin/stats error", err);
+        return NextResponse.json(
+            {
+                error: "Server error", data: {
+                    totalUsers: 0,
+                    totalInvestment: 0,
+                    totalDailyProfit: 0,
+                    totalPendingWithdraw: 0,
+                    totalDeposited: 0,
+                    activeInvestments: 0,
+                    avgInvestmentAmount: 0,
+                }
+            },
+            { status: 500 }
+        );
+    }
+}

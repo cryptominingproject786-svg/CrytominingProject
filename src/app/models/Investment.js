@@ -5,54 +5,41 @@ const InvestmentSchema = new mongoose.Schema(
         user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
-            required: true,
+            required: true
         },
-        minerName: {
-            type: String,
-            required: true,
-        },
-        amount: {
+
+        minerName: String,
+
+        amount: Number,
+
+        cycleDays: Number,
+
+        monthlyRoR: Number,
+
+        dailyProfit: Number,
+
+        totalProfit: Number,
+
+        totalReturn: Number,
+
+        claimedProfit: {
             type: Number,
-            required: true,
-            min: 0,
+            default: 0
         },
-        investmentCycle: {
-            type: Number, // days
-            required: true,
-        },
-        monthlyRoR: {
-            type: Number, // Monthly Rate of Return as decimal (e.g., 0.70 for 70%)
-            required: true,
-        },
-        dailyProfit: {
-            type: Number,
-            required: true,
-        },
-        totalProfit: {
-            type: Number,
-            required: true,
-        },
-        totalReturn: {
-            type: Number,
-            required: true,
-        },
-        status: {
-            type: String,
-            enum: ["active", "completed", "cancelled"],
-            default: "active",
-        },
+
         startDate: {
             type: Date,
-            default: () => new Date(),
+            default: Date.now
         },
-        maturityDate: {
-            type: Date,
-            required: true,
-        },
-        profitWithdrawn: {
-            type: Number,
-            default: 0,
-        },
+
+        maturityDate: Date,
+
+        status: {
+            type: String,
+            enum: ["active", "completed"],
+            default: "active"
+        }
+
     },
     { timestamps: true }
 );

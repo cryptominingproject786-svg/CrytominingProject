@@ -42,6 +42,7 @@ export default function InvestModal() {
     const [balanceError, setBalanceError] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [investmentMessage, setInvestmentMessage] = useState(null);
+    const [liveProfit, setLiveProfit] = useState(null);
 
     // ── ALL hooks before any early return ──
 
@@ -70,6 +71,30 @@ export default function InvestModal() {
 
         fetchBalance();
     }, [isModalOpen]);
+    useEffect(() => {
+
+        if (!isModalOpen) return;
+
+        const interval = setInterval(async () => {
+
+            try {
+                const res = await fetch("/api/invest/profit");
+
+                if (!res.ok) return;
+
+                const data = await res.json();
+
+                setLiveProfit(data.data);
+
+            } catch (err) {
+                console.error("Profit fetch error", err);
+            }
+
+        }, 1000);
+
+        return () => clearInterval(interval);
+
+    }, [isModalOpen]);
 
     const minAmount = useMemo(() => {
         if (!selectedMiner) return 0;
@@ -93,20 +118,20 @@ export default function InvestModal() {
 
     const monthlyRoR = useMemo(() => getMonthlyRoR(cycleDays), [cycleDays]);
     const dailyRate = useMemo(() => monthlyRoR / 30, [monthlyRoR]);
-        const dailyProfit = useMemo(() => {
-    const p = parseFloat(amount);
-    if (!p || isNaN(p)) return 0;
-    return roundMoney(p * dailyRate);
-}, [amount, dailyRate]);
+    const dailyProfit = useMemo(() => {
+        const p = parseFloat(amount);
+        if (!p || isNaN(p)) return 0;
+        return roundMoney(p * dailyRate);
+    }, [amount, dailyRate]);
 
-const totalProfit = useMemo(() => {
-    return roundMoney(dailyProfit * cycleDays);
-}, [dailyProfit, cycleDays]);
+    const totalProfit = useMemo(() => {
+        return roundMoney(dailyProfit * cycleDays);
+    }, [dailyProfit, cycleDays]);
 
-const totalReturn = useMemo(() => {
-    const p = parseFloat(amount) || 0;
-    return roundMoney(p + totalProfit);
-}, [amount, totalProfit]);
+    const totalReturn = useMemo(() => {
+        const p = parseFloat(amount) || 0;
+        return roundMoney(p + totalProfit);
+    }, [amount, totalProfit]);
     // ── Early return AFTER all hooks ──
     if (!isModalOpen || !selectedMiner) return null;
 
@@ -161,43 +186,28 @@ const totalReturn = useMemo(() => {
             }
 
             // ✅ Update modal balance with the new balance returned from API
-           // Update modal balance
-           const newBalance =
-    typeof json.data?.newBalance === "number"
-        ? json.data.newBalance
-        : balance;
-setBalance(newBalance);
+            // Update modal balance
+            const newBalance =
+                typeof json.data?.newBalance === "number"
+                    ? json.data.newBalance
+                    : balance;
+            setBalance(newBalance);
 
-setInvestmentMessage({
-    type: "success",
-    text: `Investment of $${numAmount.toFixed(2)} created! Remaining balance: $${Number(newBalance).toFixed(2)}`
-});
+            setInvestmentMessage({
+                type: "success",
+                text: `Investment of $${numAmount.toFixed(2)} created! Remaining balance: $${Number(newBalance).toFixed(2)}`
+            });
 
-setAmount("");
+            setAmount("");
 
-// Notify dashboard
-window.dispatchEvent(new Event("investmentSuccess"));
+            // Notify dashboard
+            window.dispatchEvent(new Event("investmentSuccess"));
 
-// Redirect instantly
-dispatch(closePurchaseModal());
-router.push("/dashboard");
+            // Redirect instantly
+            dispatch(closePurchaseModal());
+            router.push("/dashboard");
 
-// Only reward if investment succeeded
-if (res.ok) {
-    const payout = roundMoney(totalReturn); // principal + profit
-
-    setTimeout(() => {
-        if (typeof window !== "undefined") {
-            window.__pendingProfitCredit =
-                (window.__pendingProfitCredit || 0) + payout;
-
-            window.dispatchEvent(
-                new CustomEvent("profitCredit", { detail: payout })
-            );
-        }
-    }, 6000);
-}
-
+            // Only reward if investment succeeded
 
         } catch (err) {
             console.error("Investment error:", err);

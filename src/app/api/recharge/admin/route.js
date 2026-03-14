@@ -20,12 +20,18 @@ export async function GET(req) {
         const url = new URL(req.url);
         const limit = Math.min(Number(url.searchParams.get("limit")) || 50, 200);
 
+        // include rich user details on each recharge for admin dashboard
         const recharges = await Recharge.find()
             .sort({ createdAt: -1 })
             .limit(limit)
-            .populate("user", "username email")
+            // select fields admins care about so we can render full user summary client-side
+            .populate("user", "username email balance investedAmount totalEarnings dailyProfit role")
             .lean();
 
+        // debug: inspect first document to ensure user was populated
+        if (recharges.length > 0) {
+            console.log("/api/recharge/admin sample after populate", recharges[0]);
+        }
         const items = recharges.map((r) => {
             let slipData = null;
 
