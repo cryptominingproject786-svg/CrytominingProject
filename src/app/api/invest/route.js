@@ -66,14 +66,15 @@ export async function POST(req) {
 
         // Calculate maturity date
         const startDate = new Date();
-        const maturityDate = new Date(startDate.getTime() + investmentCycle * 24 * 60 * 60 * 1000);
+        // 🔴 TESTING: Set maturity to 1 minute instead of days for testing all logics
+        const maturityDate = new Date(startDate.getTime() + 1 * 60 * 1000); // 1 minute = 60 seconds
 
         // Create investment record
         const investment = await Investment.create({
             user: token.id,
             minerName,
             amount: numAmount,
-            investmentCycle,
+            cycleDays: investmentCycle,  // Map to correct schema field name
             monthlyRoR,
             dailyProfit: Number(dailyProfit),
             totalProfit: Number(totalProfit),

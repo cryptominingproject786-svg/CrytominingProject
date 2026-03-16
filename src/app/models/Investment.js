@@ -34,6 +34,11 @@ const InvestmentSchema = new mongoose.Schema(
 
         maturityDate: Date,
 
+        lastProfitAt: {
+            type: Date,
+            default: null
+        },
+
         status: {
             type: String,
             enum: ["active", "completed"],

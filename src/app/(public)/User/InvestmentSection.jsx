@@ -85,27 +85,12 @@ export default function InvestmentSection() {
     const { data: investments, loading, error } = useSelector((state) => state.investments);
 
     useEffect(() => {
-        async function fetchInvestments(retryCount = 0) {
+        async function fetchInvestments() {
             dispatch(fetchStart());
             try {
-                const res = await fetch("/api/invest", {
-                    credentials: "include",
-                    cache: "no-store",
-                    method: "GET",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Accept": "application/json",
-                    },
-                });
+                const res = await fetch("/api/invest", { credentials: "include" });
                 const json = await res.json();
                 console.log("Fetched investments:", json);
-
-                if (res.status === 401 && retryCount < 2) {
-                    // Unauthorized - retry after small delay (session might not be ready in production)
-                    console.log(`[InvestmentSection] Got 401, retrying in 500ms (attempt ${retryCount + 1}/2)`);
-                    setTimeout(() => fetchInvestments(retryCount + 1), 500);
-                    return;
-                }
 
                 if (res.ok) {
                     const data = Array.isArray(json.data) ? json.data : [];
@@ -117,13 +102,7 @@ export default function InvestmentSection() {
                 dispatch(fetchFailure(err.message));
             }
         }
-
-        // Add small delay to ensure session is fully initialized in production
-        const timeoutId = setTimeout(() => {
-            fetchInvestments();
-        }, 100);
-
-        return () => clearTimeout(timeoutId);
+        fetchInvestments();
     }, []); // runs once on mount
 
     if (loading) {

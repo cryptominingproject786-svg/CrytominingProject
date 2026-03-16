@@ -280,7 +280,7 @@ export default function InvestModal() {
                 <div className="bg-purple-900 rounded-xl p-4 text-sm space-y-2 mb-5">
                     <div className="flex justify-between">
                         <span>Investment cycle</span>
-                        <span>{cycleDays} {cycleDays === 1 ? "Day (Daily)" : "Days"}</span>
+                        <span className="text-blue-300 font-semibold">{cycleDays} {cycleDays === 1 ? "Day (Daily)" : "Days"}</span>
                     </div>
                     <div className="flex justify-between">
                         <span>Monthly RoR</span>
@@ -296,18 +296,27 @@ export default function InvestModal() {
                     </div>
                     <div className="flex justify-between">
                         <span>Total profit</span>
-                        <span>${totalProfit.toFixed(2)}</span>
+                        <span className="text-green-400 font-semibold">${totalProfit.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-yellow-300 font-semibold border-t border-purple-700 pt-2">
                         <span>Total return (Principal + Profit)</span>
                         <span>${totalReturn.toFixed(2)}</span>
                     </div>
+                    <div className="border-t border-purple-700 pt-2 mt-2">
+                        <div className="text-xs bg-blue-900/50 rounded p-2 text-blue-200">
+                            ⚠️ <strong>Lock Period:</strong> Your ${amount || 0} will be locked for {cycleDays} {cycleDays === 1 ? "day" : "days"}.
+                            You cannot reinvest or withdraw this amount during this period.
+                        </div>
+                    </div>
+                    <div className="border-t border-purple-700 pt-2">
+                        <div className="text-xs bg-green-900/50 rounded p-2 text-green-200">
+                            ✅ <strong>Maturity:</strong> After {cycleDays} {cycleDays === 1 ? "day" : "days"}, your principal (${amount || 0})
+                            plus total profit (${totalProfit.toFixed(2)}) will be automatically returned to your wallet.
+                        </div>
+                    </div>
                     <div className="flex justify-between">
                         <span>Total investments</span>
                         <span>Unlimited</span>
-                    </div>
-                    <div className="text-xs opacity-80 pt-2">
-                        Interest is returned daily and the principal is repaid upon maturity
                     </div>
                 </div>
 

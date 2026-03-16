@@ -41,32 +41,62 @@ export async function GET(req) {
         const DAY_SECONDS = 86400;
 
         let generatedProfit = 0;
-        let investedAmount = 0;
-
+        let activeInvestedAmount = 0;
         const bulkUpdates = [];
+        let principalToReturn = 0; // Amount to return from matured investments
 
         for (const inv of investments) {
+            const maturityTime = new Date(inv.maturityDate).getTime();
+            const isMatured = now >= maturityTime;
 
-            investedAmount += inv.amount;
+            if (isMatured) {
+                // 🔴 INVESTMENT MATURED - Return principal + full promised profit
+                // Use the totalProfit field which was calculated and stored when investment was created
+                // This ensures the full promised profit is returned regardless of actual maturity time
+                const totalProfitForCycle = inv.totalProfit || (inv.dailyProfit * inv.cycleDays) || 0;
+                const remainingProfit = Math.max(0, totalProfitForCycle - (inv.claimedProfit || 0));
 
-            const last = new Date(inv.lastProfitAt || inv.startDate).getTime();
+                // Return principal + full remaining profit
+                principalToReturn += inv.amount + remainingProfit;
 
-            const secondsPassed = (now - last) / 1000;
-
-            const profitPerSecond = inv.dailyProfit / DAY_SECONDS;
-
-            const profit = secondsPassed * profitPerSecond;
-
-            if (profit > 0) {
-
-                generatedProfit += profit;
-
+                // Mark as completed
                 bulkUpdates.push({
                     updateOne: {
                         filter: { _id: inv._id },
-                        update: { lastProfitAt: new Date(now) }
+                        update: {
+                            $set: {
+                                status: "completed",
+                                claimedProfit: totalProfitForCycle
+                            }
+                        }
                     }
                 });
+
+                console.log(`Investment ${inv._id} matured. Returning $${inv.amount} principal + $${remainingProfit.toFixed(2)} profit (Total: $${(inv.amount + remainingProfit).toFixed(2)})`);
+            } else {
+                // 🟢 ACTIVE INVESTMENT - Calculate daily profit
+                activeInvestedAmount += inv.amount;
+
+                const last = new Date(inv.lastProfitAt || inv.startDate).getTime();
+                const secondsPassed = (now - last) / 1000;
+                const profitPerSecond = inv.dailyProfit / DAY_SECONDS;
+                const profit = secondsPassed * profitPerSecond;
+
+                if (profit > 0) {
+                    generatedProfit += profit;
+
+                    bulkUpdates.push({
+                        updateOne: {
+                            filter: { _id: inv._id },
+                            update: {
+                                $set: {
+                                    lastProfitAt: new Date(now)
+                                },
+                                $inc: { claimedProfit: profit }
+                            }
+                        }
+                    });
+                }
             }
         }
 
@@ -75,12 +105,22 @@ export async function GET(req) {
             await Investment.bulkWrite(bulkUpdates);
         }
 
-        // 🔹 Update user balance
-        if (generatedProfit > 0) {
-            await User.updateOne(
-                { _id: userId },
-                { $inc: { balance: generatedProfit } }
-            );
+        // 🔹 Calculate total balance change
+        const totalBalanceIncrease = generatedProfit + principalToReturn;
+
+        // 🔹 Update user investments and balance
+        if (totalBalanceIncrease > 0 || principalToReturn > 0) {
+            const updatePayload = {};
+            if (totalBalanceIncrease > 0) {
+                updatePayload.$inc = { balance: totalBalanceIncrease };
+            }
+            // Update investedAmount to only active investments
+            updatePayload.investedAmount = activeInvestedAmount;
+
+            await User.updateOne({ _id: userId }, updatePayload);
+        } else if (principalToReturn === 0 && activeInvestedAmount !== user.investedAmount) {
+            // Just update investedAmount if no balance change
+            await User.updateOne({ _id: userId }, { investedAmount: activeInvestedAmount });
         }
 
         // 🔹 Get updated user
@@ -91,7 +131,7 @@ export async function GET(req) {
         const walletBalance = Math.round(updatedUser.balance * 100) / 100;
 
         const totalAssets = Math.round(
-            (walletBalance + investedAmount) * 100
+            (walletBalance + activeInvestedAmount) * 100
         ) / 100;
 
         // 🔹 Last confirmed recharge
@@ -113,10 +153,11 @@ export async function GET(req) {
             data: {
                 ...updatedUser,
                 balance: walletBalance,
-                investedAmount,
+                investedAmount: activeInvestedAmount,
                 generatedProfit: Math.round(generatedProfit * 100) / 100,
                 totalAssets,
-                lastConfirmedAmount
+                lastConfirmedAmount,
+                maturedReturns: Math.round(principalToReturn * 100) / 100 // New field showing matured amounts
             }
         });
 
