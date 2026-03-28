@@ -1,31 +1,88 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchStart, fetchSuccess, fetchFailure } from "../../../Redux/Slices/InvestmentSlice"; // correct relative path to Redux slice
+import {
+    fetchStart,
+    fetchSuccess,
+    fetchFailure,
+} from "../../../Redux/Slices/InvestmentSlice";
 
-const InvestmentCard = ({ inv }) => {
+// ── InvestmentCard ────────────────────────────────────────────────────────────
+const InvestmentCard = ({ inv, onClaim }) => {
+    const [claiming, setClaiming] = useState(false);
+    const [claimError, setClaimError] = useState(null);
+
     const start = new Date(inv.startDate);
     const end = new Date(inv.maturityDate);
     const now = new Date();
 
     const totalSeconds = (end - start) / 1000;
     const passedSeconds = Math.max(0, (now - start) / 1000);
+    const percent = Math.min(100, Math.round((passedSeconds / totalSeconds) * 100));
 
-    const percent = Math.min(
-        100,
-        Math.round((passedSeconds / totalSeconds) * 100)
-    );
+    // ── Is this investment ready to claim? ────────────────────────────────────
+    const isMatured = now >= end && inv.status === "active";
 
-    const statusColor = inv.status === "active" ? "bg-green-500" : "bg-gray-500";
+    const statusColor =
+        inv.status === "active"
+            ? isMatured
+                ? "bg-yellow-500"   // matured → ready to claim
+                : "bg-green-500"    // still running
+            : "bg-gray-500";        // completed / other
+
+    const statusLabel =
+        inv.status === "active" && isMatured ? "Matured" : inv.status;
+
+    // ── Claim handler ─────────────────────────────────────────────────────────
+    const handleClaim = async () => {
+        setClaiming(true);
+        setClaimError(null);
+        try {
+            const res = await fetch("/api/invest/maturity", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ investmentId: inv._id }),
+            });
+
+            const json = await res.json();
+
+            if (!res.ok) {
+                setClaimError(json.error || "Claim failed");
+                return;
+            }
+
+            // ✅ Tell UserData to re-fetch balance
+            window.dispatchEvent(
+                new CustomEvent("investmentClaimed", { detail: json.data.totalReceived })
+            );
+
+            // ✅ Tell InvestmentSection to refresh its list
+            window.dispatchEvent(new Event("investmentSuccess"));
+
+            // ✅ Bubble up to parent so it can update Redux immediately
+            onClaim(inv._id);
+
+        } catch (err) {
+            setClaimError(err.message || "Network error");
+        } finally {
+            setClaiming(false);
+        }
+    };
 
     return (
-        <div className="relative bg-gradient-to-br from-gray-900 to-black border border-yellow-400 rounded-3xl p-6 shadow-xl hover:scale-105 transition-all duration-500">
-            <div className={`absolute top-4 right-4 px-3 py-1 text-xs font-bold text-black rounded-full ${statusColor}`}>
-                {inv.status}
+        <div className="relative bg-gradient-to-br from-gray-900 to-black border border-yellow-400 rounded-3xl p-6 shadow-xl hover:scale-105 transition-all duration-500 flex flex-col gap-4">
+
+            {/* Status badge */}
+            <div
+                className={`absolute top-4 right-4 px-3 py-1 text-xs font-bold text-black rounded-full ${statusColor}`}
+            >
+                {statusLabel}
             </div>
 
-            <h3 className="text-xl font-bold text-yellow-400 mb-3">{inv.minerName}</h3>
+            <h3 className="text-xl font-bold text-yellow-400">{inv.minerName}</h3>
 
+            {/* Stats grid */}
             <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                     <p className="text-gray-400">Investment</p>
@@ -63,7 +120,8 @@ const InvestmentCard = ({ inv }) => {
                 </div>
             </div>
 
-            <div className="mt-5">
+            {/* Progress bar */}
+            <div>
                 <div className="flex justify-between text-xs text-gray-400 mb-1">
                     <span>Investment Progress</span>
                     <span>{percent}%</span>
@@ -75,42 +133,90 @@ const InvestmentCard = ({ inv }) => {
                     />
                 </div>
             </div>
+
+            {/* ── Claim button — only shown when matured ── */}
+            {isMatured && (
+                <div className="flex flex-col gap-2">
+                    <button
+                        onClick={handleClaim}
+                        disabled={claiming}
+                        aria-label={`Claim ${inv.totalReturn} USDT from ${inv.minerName}`}
+                        className={`w-full py-3 rounded-2xl font-bold text-black text-base shadow-lg transition-all duration-300
+                            ${claiming
+                                ? "bg-yellow-300 cursor-not-allowed opacity-70"
+                                : "bg-yellow-400 hover:bg-yellow-300 hover:shadow-yellow-400/40 hover:shadow-xl active:scale-95"
+                            }`}
+                    >
+                        {claiming
+                            ? "Claiming…"
+                            : `Claim ${inv.totalReturn ?? (inv.amount + inv.totalProfit)} USDT`}
+                    </button>
+
+                    {claimError && (
+                        <p role="alert" className="text-red-400 text-xs text-center">
+                            {claimError}
+                        </p>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
 
-// ✅ Child fetches data, dispatches to Redux, and renders — parent just reads from store
+// ── InvestmentSection ─────────────────────────────────────────────────────────
 export default function InvestmentSection() {
     const dispatch = useDispatch();
-    const { data: investments, loading, error } = useSelector((state) => state.investments);
+    const { data: investments, loading, error } = useSelector(
+        (state) => state.investments
+    );
 
-    useEffect(() => {
-        async function fetchInvestments() {
-            dispatch(fetchStart());
-            try {
-                const res = await fetch("/api/invest", { credentials: "include" });
-                const json = await res.json();
-                console.log("Fetched investments:", json);
+    // ── Fetch investments ─────────────────────────────────────────────────────
+    const fetchInvestments = useCallback(async () => {
+        dispatch(fetchStart());
+        try {
+            const res = await fetch("/api/invest", { credentials: "include" });
+            const json = await res.json();
 
-                if (res.ok) {
-                    const data = Array.isArray(json.data) ? json.data : [];
-                    dispatch(fetchSuccess(data));
-                } else {
-                    dispatch(fetchFailure(json.error || "Failed to fetch investments"));
-                }
-            } catch (err) {
-                dispatch(fetchFailure(err.message));
+            if (res.ok) {
+                dispatch(fetchSuccess(Array.isArray(json.data) ? json.data : []));
+            } else {
+                dispatch(fetchFailure(json.error || "Failed to fetch investments"));
             }
+        } catch (err) {
+            dispatch(fetchFailure(err.message));
         }
-        fetchInvestments();
-    }, []); // runs once on mount
+    }, [dispatch]);
 
+    // ── Initial fetch ─────────────────────────────────────────────────────────
+    useEffect(() => {
+        fetchInvestments();
+    }, [fetchInvestments]);
+
+    // ── Re-fetch when a new investment is created ─────────────────────────────
+    useEffect(() => {
+        window.addEventListener("investmentSuccess", fetchInvestments);
+        return () =>
+            window.removeEventListener("investmentSuccess", fetchInvestments);
+    }, [fetchInvestments]);
+
+    // ── Remove claimed investment from Redux immediately (optimistic update) ──
+    const handleClaimed = useCallback(
+        (claimedId) => {
+            const updated = investments.filter((inv) => inv._id !== claimedId);
+            dispatch(fetchSuccess(updated));
+        },
+        [dispatch, investments]
+    );
+
+    // ── UI states ─────────────────────────────────────────────────────────────
     if (loading) {
         return (
             <section className="flex flex-col gap-6">
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-yellow-400 uppercase">Your Investments</h2>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-yellow-400 uppercase">
+                    Your Investments
+                </h2>
                 <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 text-center text-gray-400 animate-pulse">
-                    Loading investments...
+                    Loading investments…
                 </div>
             </section>
         );
@@ -119,7 +225,9 @@ export default function InvestmentSection() {
     if (error) {
         return (
             <section className="flex flex-col gap-6">
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-yellow-400 uppercase">Your Investments</h2>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-yellow-400 uppercase">
+                    Your Investments
+                </h2>
                 <div className="bg-gray-900 border border-red-500 rounded-2xl p-6 text-center text-red-400">
                     Error: {error}
                 </div>
@@ -129,7 +237,9 @@ export default function InvestmentSection() {
 
     return (
         <section className="flex flex-col gap-6">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-yellow-400 uppercase">Your Investments</h2>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-yellow-400 uppercase">
+                Your Investments
+            </h2>
 
             {investments.length === 0 ? (
                 <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 text-center text-gray-400">
@@ -138,7 +248,11 @@ export default function InvestmentSection() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {investments.map((inv) => (
-                        <InvestmentCard key={inv._id} inv={inv} />
+                        <InvestmentCard
+                            key={inv._id}
+                            inv={inv}
+                            onClaim={handleClaimed}
+                        />
                     ))}
                 </div>
             )}

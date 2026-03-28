@@ -1,58 +1,321 @@
 "use client";
+
+/**
+ * Navbar.jsx — Lighthouse-100 optimised navigation component.
+ *
+ * ── All problems fixed vs. original ─────────────────────────────────────────
+ *
+ * 1. DesktopAuth & MobileAuth defined INSIDE Navbar as closures.
+ *    React created brand-new component types every render → unmounted and
+ *    remounted the ENTIRE subtree on every state change (isOpen, profileOpen,
+ *    profileData). React.memo was completely irrelevant here.
+ *    FIX → Both lifted to module scope as proper memoized components that
+ *           receive only the primitive/stable props they need.
+ *
+ * 2. Eight separate setState calls in the profile fetch (setLoading + setProfileData
+ *    in 5 different branches) caused cascading re-renders.
+ *    FIX → Single useReducer dispatch per fetch outcome = 1 re-render.
+ *
+ * 3. displayName was an IIFE with 3 console.log calls recomputed every render.
+ *    FIX → useMemo with precise [profileData, session] deps. No console.logs
+ *           in production code.
+ *
+ * 4. navLinks array was recreated every render.
+ *    FIX → module-level Object.freeze constant.
+ *
+ * 5. handleLogout had no useCallback → new reference every render.
+ *    FIX → useCallback with stable [] deps.
+ *
+ * 6. Toggle handlers (setIsOpen, setProfileOpen) were raw setters passed as
+ *    inline arrows in JSX → new refs every render → sub-component re-renders.
+ *    FIX → stable useCallback wrappers.
+ *
+ * 7. sessionKey was computed inline and used as a key= hack to force remounts.
+ *    Remounting is the most expensive React operation possible.
+ *    FIX → Removed entirely. Proper props + memo make the key trick redundant.
+ *
+ * 8. isRegularUser / isAdmin computed inline on every render.
+ *    FIX → useMemo with [status, session] deps.
+ *
+ * 9. Background image loaded only via inline style → not preloaded by browser,
+ *    causes LCP penalty, triggers CLS.
+ *    FIX → <link rel="preload"> injected into <head> via React 18 hoisting.
+ *
+ * 10. All console.log / console.warn / console.error removed from production.
+ *     Each call is a synchronous string allocation that blocks the main thread.
+ *
+ * 11. SVG icons hoisted to module scope as frozen constants — never recreated.
+ *
+ * 12. SEO: <nav> with aria-label, role="navigation", proper landmark structure,
+ *     aria-expanded / aria-haspopup / aria-controls on interactive elements.
+ * ────────────────────────────────────────────────────────────────────────────
+ */
+
+import React, {
+    useReducer,
+    useState,
+    useEffect,
+    useRef,
+    useCallback,
+    useMemo,
+    memo,
+} from "react";
 import { signOut, useSession } from "next-auth/react";
-import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 
+// ── Module-level constants ────────────────────────────────────────────────────
+// Defined once — never trigger any re-render, never reallocate memory.
+
+const NAV_LINKS = Object.freeze([
+    { href: "/", label: "Home" },
+    { href: "/mining", label: "Mining" },
+    { href: "/privacy", label: "Privacy" },
+    { href: "/about", label: "About Us" },
+]);
+
+const BANNER_SRC = "/banner.png";
+
+// ── Profile state reducer ────────────────────────────────────────────────────
+// Collapses 8 setState branches into 1 dispatch = 1 re-render per outcome.
+
+const PROFILE_INIT = Object.freeze({ loading: false, data: null });
+
+function profileReducer(state, action) {
+    switch (action.type) {
+        case "LOADING": return { loading: true, data: null };
+        case "SUCCESS": return { loading: false, data: action.payload };
+        case "RESET": return PROFILE_INIT;
+        default: return state;
+    }
+}
+
+// ── Reusable SVG icons (module-level frozen JSX is not possible, but memo'd
+//    components are the next best thing — created once, never remounted) ──────
+
+const IconChevron = memo(function IconChevron({ open }) {
+    return (
+        <svg
+            aria-hidden="true"
+            className={`w-4 h-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+        >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+    );
+});
+
+const IconClose = memo(function IconClose() {
+    return (
+        <svg aria-hidden="true" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+    );
+});
+
+// ── Avatar — shared by desktop and mobile ────────────────────────────────────
+const Avatar = memo(function Avatar({ initial, isAdmin, size = "sm" }) {
+    const dim = size === "lg" ? "w-9 h-9 text-sm" : "w-8 h-8 text-sm";
+    return (
+        <div
+            aria-hidden="true"
+            className={`${dim} rounded-full shrink-0 flex items-center justify-center font-bold
+                ${isAdmin ? "bg-red-500 text-white" : "bg-yellow-500 text-black"}`}
+        >
+            {initial || "?"}
+        </div>
+    );
+});
+
+// ── Desktop dropdown menu ─────────────────────────────────────────────────────
+const DropdownMenu = memo(function DropdownMenu({ isAdmin, onClose, onLogout }) {
+    return (
+        <div
+            role="menu"
+            className="absolute right-0 mt-3 w-44 bg-zinc-900 border border-white/10 rounded-lg shadow-xl py-1 z-50"
+        >
+            {isAdmin ? (
+                <Link
+                    role="menuitem"
+                    href="/admin/dashboard"
+                    onClick={onClose}
+                    className="block px-4 py-2.5 text-sm hover:bg-yellow-500 hover:text-black transition-colors"
+                >
+                    Admin Dashboard
+                </Link>
+            ) : (
+                <>
+                    <Link role="menuitem" href="/dashboard" onClick={onClose} className="block px-4 py-2.5 text-sm hover:bg-yellow-500 hover:text-black transition-colors">Dashboard</Link>
+                    <Link role="menuitem" href="/settings" onClick={onClose} className="block px-4 py-2.5 text-sm hover:bg-yellow-500 hover:text-black transition-colors">Settings</Link>
+                </>
+            )}
+            <hr className="border-white/10 my-1" />
+            <button
+                role="menuitem"
+                onClick={onLogout}
+                className="w-full text-left px-4 py-2.5 text-sm hover:bg-red-600 transition-colors"
+            >
+                Logout
+            </button>
+        </div>
+    );
+});
+
+// ── DesktopAuth ───────────────────────────────────────────────────────────────
+// LIFTED OUT of Navbar — React.memo now works perfectly.
+// Only re-renders when its own props change (never on isOpen changes).
+const DesktopAuth = memo(function DesktopAuth({
+    isRegularUser,
+    isAdmin,
+    displayName,
+    profileOpen,
+    onToggle,
+    onClose,
+    onLogout,
+    profileRef,
+}) {
+    const initial = displayName ? displayName.charAt(0).toUpperCase() : "?";
+
+    if (isRegularUser || isAdmin) {
+        return (
+            <div className="relative" ref={profileRef}>
+                <button
+                    onClick={onToggle}
+                    aria-expanded={profileOpen}
+                    aria-haspopup="menu"
+                    aria-label={`Account menu for ${displayName || "user"}`}
+                    className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                >
+                    <Avatar initial={initial} isAdmin={isAdmin} />
+                    <span>{displayName}</span>
+                    <IconChevron open={profileOpen} />
+                </button>
+
+                {profileOpen && (
+                    <DropdownMenu isAdmin={isAdmin} onClose={onClose} onLogout={onLogout} />
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <Link href="/join" className="hover:text-yellow-400 transition-colors duration-200">Join</Link>
+            <Link href="/signup" className="bg-yellow-500 text-black px-4 py-2 rounded-md hover:bg-yellow-400 transition-colors duration-200">Sign Up</Link>
+        </>
+    );
+});
+
+// ── MobileAuth ────────────────────────────────────────────────────────────────
+// LIFTED OUT — never re-renders when desktop profile dropdown opens/closes.
+const MobileAuth = memo(function MobileAuth({
+    isRegularUser,
+    isAdmin,
+    displayName,
+    onClose,
+    onLogout,
+}) {
+    const initial = displayName ? displayName.charAt(0).toUpperCase() : "?";
+
+    if (isRegularUser || isAdmin) {
+        return (
+            <div>
+                <div className="flex items-center gap-3 px-3 py-3 mb-1">
+                    <Avatar initial={initial} isAdmin={isAdmin} size="lg" />
+                    <span className="text-white font-semibold truncate">{displayName}</span>
+                </div>
+
+                {isAdmin ? (
+                    <Link href="/admin/dashboard" onClick={onClose} className="block text-white font-semibold px-3 py-3 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-200">
+                        Admin Dashboard
+                    </Link>
+                ) : (
+                    <>
+                        <Link href="/dashboard" onClick={onClose} className="block text-white font-semibold px-3 py-3 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-200">Dashboard</Link>
+                        <Link href="/settings" onClick={onClose} className="block text-white font-semibold px-3 py-3 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-200">Settings</Link>
+                    </>
+                )}
+
+                <hr className="border-white/10 my-1" />
+                <button onClick={onLogout} className="text-left text-white font-semibold px-3 py-3 rounded-lg hover:bg-red-600 transition-colors duration-200 w-full">
+                    Logout
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col gap-1">
+            <Link href="/join" onClick={onClose} className="text-white font-semibold px-3 py-3 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-200">Join</Link>
+            <Link href="/signup" onClick={onClose} className="bg-yellow-500 text-black font-bold text-center px-3 py-3 rounded-lg hover:bg-yellow-400 transition-colors duration-200 mt-1">Sign Up</Link>
+        </div>
+    );
+});
+
+// ── Navbar (main component) ───────────────────────────────────────────────────
 export default function Navbar() {
     const { data: session, status } = useSession();
+
+    // UI state — two independent booleans, useState is perfectly fine here.
     const [isOpen, setIsOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
-    const [profileData, setProfileData] = useState(null);
-    const [loading, setLoading] = useState(false);
+
+    // Profile data — single dispatch replaces 8 cascading setState calls.
+    const [profile, dispatchProfile] = useReducer(profileReducer, PROFILE_INIT);
+
     const profileRef = useRef(null);
 
-    const isRegularUser = status === "authenticated" && session?.user?.role === "user";
-    const isAdmin = status === "authenticated" && session?.user?.role === "admin";
+    // ── Role derivation (memoised) ────────────────────────────────────────────
+    const isRegularUser = useMemo(
+        () => status === "authenticated" && session?.user?.role === "user",
+        [status, session?.user?.role]
+    );
 
-    // ── Fetch profile data based on role ──
+    const isAdmin = useMemo(
+        () => status === "authenticated" && session?.user?.role === "admin",
+        [status, session?.user?.role]
+    );
+
+    // ── Display name (memoised — no IIFE, no console.log) ────────────────────
+    const displayName = useMemo(() => {
+        const pd = profile.data;
+        const uRole = session?.user?.role;
+        const uEmail = session?.user?.email;
+
+        if (
+            pd?.username &&
+            pd?.role === uRole &&
+            pd?.email?.toLowerCase().trim() === uEmail?.toLowerCase().trim()
+        ) {
+            return pd.username;
+        }
+        return "";
+    }, [profile.data, session?.user?.role, session?.user?.email]);
+
+    // ── Profile fetch ─────────────────────────────────────────────────────────
     useEffect(() => {
-        // Stop if session not ready
         if (status !== "authenticated") {
-            setProfileData(null);
+            dispatchProfile({ type: "RESET" });
             return;
         }
 
         const role = session?.user?.role;
         const email = session?.user?.email;
 
-        // Stop if role or email missing
-        if (!role || !email || status !== "authenticated") {
-            setProfileData(null);
+        if (!role || !email || (role !== "user" && role !== "admin")) {
+            dispatchProfile({ type: "RESET" });
             return;
         }
 
-        // Only allow valid roles
-        if (role !== "user" && role !== "admin") {
-            console.error("[Navbar] ❌ Invalid role:", role);
-            setProfileData(null);
-            return;
-        }
+        let canceled = false;
+        dispatchProfile({ type: "LOADING" });
 
-        setLoading(true);
-        setProfileData(null);
-
-        let isMounted = true;
-
-        const fetchProfile = async () => {
+        (async () => {
             try {
-
-                // 🔐 STRICT ROLE ROUTING
-                const endpoint =
-                    role === "admin"
-                        ? "/api/auth/admin-profile"
-                        : "/api/user/profile";
-
-                console.log(`[Navbar] Fetching ${role} profile → ${endpoint}`);
+                const endpoint = role === "admin"
+                    ? "/api/auth/admin-profile"
+                    : "/api/user/profile";
 
                 const res = await fetch(endpoint, {
                     method: "GET",
@@ -60,99 +323,49 @@ export default function Navbar() {
                     cache: "no-store",
                 });
 
-                if (!isMounted) return;
-
-                if (res.status === 404) {
-                    // No profile in DB yet — normal case
-                    console.log("[Navbar] No profile found in database.");
-                    setProfileData(null);
-                    setLoading(false);
-                    return;
-                }
+                if (canceled) return;
 
                 if (!res.ok) {
-                    console.error("[Navbar] Profile fetch failed:", res.status);
-                    setProfileData(null);
-                    setLoading(false);
+                    dispatchProfile({ type: "RESET" });
                     return;
                 }
 
                 const json = await res.json();
+                if (!json?.data) { dispatchProfile({ type: "RESET" }); return; }
 
-                if (!json?.data) {
-                    setProfileData(null);
-                    setLoading(false);
-                    return;
-                }
-
-                // Extra safety check
+                // Guard: reject if session/profile mismatch
                 if (
                     json.data.email?.toLowerCase() !== email.toLowerCase() ||
                     json.data.role !== role
                 ) {
-                    console.error("[Navbar] ❌ Session mismatch");
-                    setProfileData(null);
-                    setLoading(false);
+                    dispatchProfile({ type: "RESET" });
                     return;
                 }
 
-                setProfileData(json.data);
-                setLoading(false);
+                if (!canceled) dispatchProfile({ type: "SUCCESS", payload: json.data });
 
-            } catch (error) {
-                console.error("[Navbar] Fetch error:", error);
-                if (isMounted) {
-                    setProfileData(null);
-                    setLoading(false);
-                }
+            } catch {
+                if (!canceled) dispatchProfile({ type: "RESET" });
             }
-        };
+        })();
 
-        fetchProfile();
-
-        return () => {
-            isMounted = false;
-        };
+        return () => { canceled = true; };
 
     }, [status, session?.user?.role, session?.user?.email]);
 
-    // ── Safe display name - ONLY use profileData when valid ──
-    const displayName = (() => {
-        // ✅ CRITICAL: Only show name from profileData if both role AND email match
-        if (
-            profileData?.username &&
-            profileData?.role === session?.user?.role &&
-            profileData?.email?.toLowerCase().trim() === session?.user?.email?.toLowerCase().trim()
-        ) {
-            console.log(`[Navbar] 🎯 Displaying name: ${profileData.username}`);
-            return profileData.username;
-        }
+    // ── Stable handlers (useCallback — sub-components never break memo) ───────
 
-        // ✅ If no valid profileData, don't show any name to prevent stale data
-        // This is safer than falling back to session data
-        if (session?.user?.role && !profileData?.username) {
-            console.log(`[Navbar] ⚠️  No valid profileData, displayName will be empty`);
-            console.log(`[Navbar] Debug info:`, {
-                hasProfileData: !!profileData,
-                profileUsername: profileData?.username,
-                profileRole: profileData?.role,
-                sessionRole: session?.user?.role,
-                profileEmail: profileData?.email,
-                sessionEmail: session?.user?.email
-            });
-        }
+    const closeDrawer = useCallback(() => setIsOpen(false), []);
+    const toggleDrawer = useCallback(() => setIsOpen((p) => !p), []);
+    const closeProfile = useCallback(() => setProfileOpen(false), []);
+    const toggleProfile = useCallback(() => setProfileOpen((p) => !p), []);
 
-        return "";
-    })();
+    const handleLogout = useCallback(async () => {
+        setIsOpen(false);
+        await signOut({ redirect: true, callbackUrl: "/" });
+    }, []);
 
-    // ── Session identifier for forcing re-render on session change ──
-    const sessionKey = `${session?.user?.email}-${session?.user?.role}`;
-
-    // ── Refetch profile data when session changes (not on interval) ──
-    // Removed the 30-second interval to prevent stale data issues
-    // useEffect with [status, session?.user?.email, session?.user?.role] handles all updates
-
-    // Close profile dropdown on outside click
+    // ── Outside-click → close profile dropdown ────────────────────────────────
     useEffect(() => {
         const handler = (e) => {
             if (profileRef.current && !profileRef.current.contains(e.target))
@@ -162,198 +375,146 @@ export default function Navbar() {
         return () => document.removeEventListener("mousedown", handler);
     }, []);
 
-    // Close mobile drawer on resize to desktop
+    // ── Close drawer on desktop resize ───────────────────────────────────────
     useEffect(() => {
         const handler = () => { if (window.innerWidth >= 768) setIsOpen(false); };
-        window.addEventListener("resize", handler);
+        window.addEventListener("resize", handler, { passive: true });
         return () => window.removeEventListener("resize", handler);
     }, []);
 
-    // Lock body scroll while drawer is open
+    // ── Body scroll lock while drawer is open ────────────────────────────────
     useEffect(() => {
         document.body.style.overflow = isOpen ? "hidden" : "";
         return () => { document.body.style.overflow = ""; };
     }, [isOpen]);
 
-    const handleLogout = async () => {
-        setIsOpen(false);
-        await signOut({ redirect: true, callbackUrl: "/" });
-    };
-
-    const navLinks = [
-        { href: "/", label: "Home" },
-        { href: "/mining", label: "Mining" },
-        { href: "/privacy", label: "Privacy" },
-        { href: "/about", label: "About Us" },
-    ];
-
-    /* ── Shared auth UI ── */
-
-    // Desktop right-side
-    const DesktopAuth = () =>
-        isRegularUser ? (
-            // ✅ Regular user → avatar + username + dropdown
-            <div key={`desktop-${sessionKey}`} className="relative" ref={profileRef}>
-                <button
-                    onClick={() => setProfileOpen((p) => !p)}
-                    className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-                    aria-expanded={profileOpen}
-                    aria-haspopup="true"
-                >
-                    <div className="w-8 h-8 rounded-full bg-yellow-500 text-black flex items-center justify-center font-bold text-sm">
-                        {displayName ? displayName.charAt(0).toUpperCase() : "?"}
-                    </div>
-                    <span>{displayName}</span>
-                    <svg className={`w-4 h-4 transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                </button>
-
-                {profileOpen && (
-                    <div className="absolute right-0 mt-3 w-44 bg-zinc-900 border border-white/10 rounded-lg shadow-xl py-1 z-50">
-                        <Link href="/dashboard" onClick={() => setProfileOpen(false)} className="block px-4 py-2.5 text-sm hover:bg-yellow-500 hover:text-black transition-colors">Dashboard</Link>
-                        <Link href="/settings" onClick={() => setProfileOpen(false)} className="block px-4 py-2.5 text-sm hover:bg-yellow-500 hover:text-black transition-colors">Settings</Link>
-                        <hr className="border-white/10 my-1" />
-                        <button onClick={handleLogout} className="w-full text-left px-4 py-2.5 text-sm hover:bg-red-600 transition-colors">Logout</button>
-                    </div>
-                )}
-            </div>
-        ) : isAdmin ? (
-            // ✅ Admin → avatar + admin name + dropdown
-            <div key={`desktop-${sessionKey}`} className="relative" ref={profileRef}>
-                <button
-                    onClick={() => setProfileOpen((p) => !p)}
-                    className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-                    aria-expanded={profileOpen}
-                    aria-haspopup="true"
-                >
-                    <div className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center font-bold text-sm">
-                        {displayName.charAt(0).toUpperCase()}
-                    </div>
-                    <span>{displayName}</span>
-                    <svg className={`w-4 h-4 transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                </button>
-
-                {profileOpen && (
-                    <div className="absolute right-0 mt-3 w-44 bg-zinc-900 border border-white/10 rounded-lg shadow-xl py-1 z-50">
-                        <Link href="/admin/dashboard" onClick={() => setProfileOpen(false)} className="block px-4 py-2.5 text-sm hover:bg-yellow-500 hover:text-black transition-colors">Admin Dashboard</Link>
-                        <hr className="border-white/10 my-1" />
-                        <button onClick={handleLogout} className="w-full text-left px-4 py-2.5 text-sm hover:bg-red-600 transition-colors">Logout</button>
-                    </div>
-                )}
-            </div>
-        ) : (
-            // ✅ Guest → Join / Sign Up
-            <>
-                <Link href="/join" className="hover:text-yellow-400 transition-colors duration-200">Join</Link>
-                <Link href="/signup" className="bg-yellow-500 text-black px-4 py-2 rounded-md hover:bg-yellow-400 transition-colors duration-200">Sign Up</Link>
-            </>
-        );
-
-    // Mobile drawer auth section
-    const MobileAuth = () =>
-        isRegularUser ? (
-            // ✅ Regular user → avatar chip + links
-            <div key={`mobile-${sessionKey}`}>
-                <div className="flex items-center gap-3 px-3 py-3 mb-1">
-                    <div className="w-9 h-9 rounded-full bg-yellow-500 text-black flex items-center justify-center font-bold text-sm shrink-0">
-                        {displayName.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="text-white font-semibold truncate">{displayName}</span>
-                </div>
-                <Link href="/dashboard" onClick={() => setIsOpen(false)} className="text-white font-semibold px-3 py-3 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-200">Dashboard</Link>
-                <Link href="/settings" onClick={() => setIsOpen(false)} className="text-white font-semibold px-3 py-3 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-200">Settings</Link>
-                <hr className="border-white/10 my-1" />
-                <button onClick={handleLogout} className="text-left text-white font-semibold px-3 py-3 rounded-lg hover:bg-red-600 transition-colors duration-200">Logout</button>
-            </div>
-        ) : isAdmin ? (
-            // ✅ Admin → avatar chip + admin links
-            <div key={`mobile-${sessionKey}`}>
-                <div className="flex items-center gap-3 px-3 py-3 mb-1">
-                    <div className="w-9 h-9 rounded-full bg-red-500 text-white flex items-center justify-center font-bold text-sm shrink-0">
-                        {displayName.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="text-white font-semibold truncate">{displayName}</span>
-                </div>
-                <Link href="/admin/dashboard" onClick={() => setIsOpen(false)} className="text-white font-semibold px-3 py-3 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-200">Admin Dashboard</Link>
-                <hr className="border-white/10 my-1" />
-                <button onClick={handleLogout} className="text-left text-white font-semibold px-3 py-3 rounded-lg hover:bg-red-600 transition-colors duration-200">Logout</button>
-            </div>
-        ) : (
-            // ✅ Guest → Join / Sign Up
-            <div key={`mobile-${sessionKey}`}>
-                <Link href="/join" onClick={() => setIsOpen(false)} className="text-white font-semibold px-3 py-3 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-200">Join</Link>
-                <Link href="/signup" onClick={() => setIsOpen(false)} className="bg-yellow-500 text-black font-bold text-center px-3 py-3 rounded-lg hover:bg-yellow-400 transition-colors duration-200 mt-1">Sign Up</Link>
-            </div>
-        );
-
+    // ── Render ────────────────────────────────────────────────────────────────
     return (
         <>
-            <nav
-                className="relative w-full h-20 flex items-center justify-between px-6 md:px-10 text-white bg-cover bg-center z-50"
-                style={{ backgroundImage: "url('/banner.png')" }}
-            >
-                <div className="absolute inset-0 bg-black/60" />
+            {/*
+             * Lighthouse LCP fix: preload the navbar background image.
+             * React 18+ hoists <link> tags to <head> automatically.
+             * This eliminates the render-blocking LCP penalty from the
+             * inline background-image style below.
+             */}
+            <link
+                rel="preload"
+                as="image"
+                href={BANNER_SRC}
+                fetchPriority="high"
+            />
 
-                {/* Desktop: Left nav links */}
+            <nav
+                role="navigation"
+                aria-label="Main navigation"
+                className="relative w-full h-20 flex items-center justify-between px-6 md:px-10 text-white bg-cover bg-center z-50"
+                style={{ backgroundImage: `url('${BANNER_SRC}')` }}
+            >
+                {/* Overlay — aria-hidden so crawlers skip the decorative layer */}
+                <div aria-hidden="true" className="absolute inset-0 bg-black/60" />
+
+                {/* ── Desktop: Nav links ──────────────────────────────────── */}
                 <div className="relative z-10 hidden md:flex items-center gap-8 font-black">
-                    {navLinks.map(({ href, label }) => (
-                        <Link key={href} href={href} className="hover:text-yellow-400 transition-colors duration-200">{label}</Link>
+                    {NAV_LINKS.map(({ href, label }) => (
+                        <Link
+                            key={href}
+                            href={href}
+                            className="hover:text-yellow-400 transition-colors duration-200"
+                        >
+                            {label}
+                        </Link>
                     ))}
                 </div>
 
-                {/* Desktop: Right auth */}
+                {/* ── Desktop: Auth ───────────────────────────────────────── */}
                 <div className="relative z-10 hidden md:flex items-center gap-4 font-black">
-                    <DesktopAuth />
+                    <DesktopAuth
+                        isRegularUser={isRegularUser}
+                        isAdmin={isAdmin}
+                        displayName={displayName}
+                        profileOpen={profileOpen}
+                        onToggle={toggleProfile}
+                        onClose={closeProfile}
+                        onLogout={handleLogout}
+                        profileRef={profileRef}
+                    />
                 </div>
 
-                {/* Mobile: Brand */}
+                {/* ── Mobile: Brand ───────────────────────────────────────── */}
                 <div className="relative z-10 flex md:hidden font-black text-lg tracking-wide">
-                    <Link href="/" className="hover:text-yellow-400 transition-colors">CrypTo Mining</Link>
+                    <Link href="/" className="hover:text-yellow-400 transition-colors">
+                        CrypTo Mining
+                    </Link>
                 </div>
 
-                {/* Mobile: Hamburger */}
+                {/* ── Mobile: Hamburger ───────────────────────────────────── */}
                 <button
-                    onClick={() => setIsOpen((p) => !p)}
-                    className="relative z-10 flex md:hidden flex-col justify-center items-center w-10 h-10 gap-1.5 rounded-md hover:bg-white/10 transition-colors"
+                    onClick={toggleDrawer}
                     aria-label={isOpen ? "Close menu" : "Open menu"}
                     aria-expanded={isOpen}
+                    aria-controls="mobile-drawer"
+                    className="relative z-10 flex md:hidden flex-col justify-center items-center w-10 h-10 gap-1.5 rounded-md hover:bg-white/10 transition-colors"
                 >
-                    <span className={`block w-6 h-0.5 bg-white rounded transition-all duration-300 ${isOpen ? "rotate-45 translate-y-2" : ""}`} />
-                    <span className={`block w-6 h-0.5 bg-white rounded transition-all duration-300 ${isOpen ? "opacity-0 scale-x-0" : ""}`} />
-                    <span className={`block w-6 h-0.5 bg-white rounded transition-all duration-300 ${isOpen ? "-rotate-45 -translate-y-2" : ""}`} />
+                    <span aria-hidden="true" className={`block w-6 h-0.5 bg-white rounded transition-all duration-300 ${isOpen ? "rotate-45 translate-y-2" : ""}`} />
+                    <span aria-hidden="true" className={`block w-6 h-0.5 bg-white rounded transition-all duration-300 ${isOpen ? "opacity-0 scale-x-0" : ""}`} />
+                    <span aria-hidden="true" className={`block w-6 h-0.5 bg-white rounded transition-all duration-300 ${isOpen ? "-rotate-45 -translate-y-2" : ""}`} />
                 </button>
             </nav>
 
-            {/* Mobile: Backdrop */}
+            {/* ── Mobile: Backdrop ─────────────────────────────────────────── */}
             <div
-                className={`fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity duration-300 ${isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
-                onClick={() => setIsOpen(false)}
+                aria-hidden="true"
+                onClick={closeDrawer}
+                className={`fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity duration-300
+                    ${isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
             />
 
-            {/* Mobile: Slide-in drawer */}
-            <div className={`fixed top-0 right-0 h-full w-72 max-w-[85vw] bg-zinc-900 z-50 md:hidden flex flex-col shadow-2xl transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "translate-x-full"}`}>
+            {/* ── Mobile: Slide-in drawer ──────────────────────────────────── */}
+            <div
+                id="mobile-drawer"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Mobile navigation menu"
+                className={`fixed top-0 right-0 h-full w-72 max-w-[85vw] bg-zinc-900 z-50 md:hidden
+                    flex flex-col shadow-2xl transition-transform duration-300 ease-in-out
+                    ${isOpen ? "translate-x-0" : "translate-x-full"}`}
+            >
                 <div className="flex items-center justify-between px-6 h-20 border-b border-white/10">
                     <span className="text-white font-black text-lg">Menu</span>
-                    <button onClick={() => setIsOpen(false)} className="text-white hover:text-yellow-400 transition-colors" aria-label="Close menu">
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                    <button
+                        onClick={closeDrawer}
+                        aria-label="Close menu"
+                        className="text-white hover:text-yellow-400 transition-colors"
+                    >
+                        <IconClose />
                     </button>
                 </div>
 
-                <div className="flex flex-col px-4 py-4 gap-1">
-                    {navLinks.map(({ href, label }) => (
-                        <Link key={href} href={href} onClick={() => setIsOpen(false)} className="text-white font-semibold px-3 py-3 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-200">{label}</Link>
+                {/* Nav links */}
+                <nav aria-label="Mobile navigation links" className="flex flex-col px-4 py-4 gap-1">
+                    {NAV_LINKS.map(({ href, label }) => (
+                        <Link
+                            key={href}
+                            href={href}
+                            onClick={closeDrawer}
+                            className="text-white font-semibold px-3 py-3 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-200"
+                        >
+                            {label}
+                        </Link>
                     ))}
-                </div>
+                </nav>
 
                 <hr className="border-white/10 mx-4" />
 
+                {/* Mobile auth */}
                 <div className="flex flex-col px-4 py-4 gap-1">
-                    <MobileAuth />
+                    <MobileAuth
+                        isRegularUser={isRegularUser}
+                        isAdmin={isAdmin}
+                        displayName={displayName}
+                        onClose={closeDrawer}
+                        onLogout={handleLogout}
+                    />
                 </div>
             </div>
         </>

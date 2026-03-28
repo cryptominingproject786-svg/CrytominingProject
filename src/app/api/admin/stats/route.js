@@ -3,6 +3,7 @@ import connectDB from "../../../lib/mongoDb";
 import User from "../../../models/User";
 import Investment from "../../../models/Investment";
 import Recharge from "../../../models/Recharge";
+import Withdraw from "../../../models/Withdraw";
 import { getToken } from "next-auth/jwt";
 
 export async function GET(req) {
@@ -19,7 +20,7 @@ export async function GET(req) {
         await connectDB();
 
         // Get all stats in parallel
-        const [totalUsers, investmentStats, pendingWithdraw, totalDeposited] = await Promise.all([
+        const [totalUsers, investmentStats, pendingRecharge, pendingWithdraw, totalDeposited] = await Promise.all([
             // Total users with role 'user'
             User.countDocuments({ role: "user" }),
 
@@ -48,6 +49,17 @@ export async function GET(req) {
                 },
             ]),
 
+            // Pending withdraw requests
+            Withdraw.aggregate([
+                { $match: { status: "pending" } },
+                {
+                    $group: {
+                        _id: null,
+                        total: { $sum: "$amount" },
+                    },
+                },
+            ]),
+
             // Confirmed recharges
             Recharge.aggregate([
                 { $match: { status: "confirmed" } },
@@ -64,6 +76,7 @@ export async function GET(req) {
             totalUsers: totalUsers || 0,
             totalInvestment: investmentStats[0]?.totalAmount || 0,
             totalDailyProfit: investmentStats[0]?.totalDailyProfit || 0,
+            totalPendingRecharge: pendingRecharge[0]?.total || 0,
             totalPendingWithdraw: pendingWithdraw[0]?.total || 0,
             totalDeposited: totalDeposited[0]?.total || 0,
             activeInvestments: investmentStats[0]?.count || 0,

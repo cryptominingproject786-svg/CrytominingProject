@@ -1,12 +1,5 @@
-export const dynamic = "force-dynamic";
-
 import AdminClient from "./AdminClient";
 
 export default function AdminPage() {
-    // Server component: simply render the client-side admin UI
-    return (
-        <div>
-            <AdminClient />
-        </div>
-    );
+    return <AdminClient initialData={[]} />;
 }

@@ -83,9 +83,7 @@ export default function InvestModal() {
                 if (!res.ok) return;
 
                 const data = await res.json();
-
-                setLiveProfit(data.data);
-
+                setLiveProfit(data.totalLiveProfit || 0);
             } catch (err) {
                 console.error("Profit fetch error", err);
             }

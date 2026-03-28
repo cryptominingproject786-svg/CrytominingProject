@@ -64,10 +64,9 @@ export async function POST(req) {
         user.investedAmount = Math.round(((user.investedAmount || 0) + numAmount) * 100) / 100;
         await user.save();
 
-        // Calculate maturity date
+        // Calculate maturity date based on investment cycle (in days)
         const startDate = new Date();
-        // 🔴 TESTING: Set maturity to 1 minute instead of days for testing all logics
-        const maturityDate = new Date(startDate.getTime() + 1 * 60 * 1000); // 1 minute = 60 seconds
+        const maturityDate = new Date(startDate.getTime() + investmentCycle * 24 * 60 * 60 * 1000);
 
         // Create investment record
         const investment = await Investment.create({
