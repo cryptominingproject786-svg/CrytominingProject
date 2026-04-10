@@ -13,6 +13,18 @@ const WithdrawSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    fee: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
+    netAmount: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
     network: {
       type: String,
       enum: ["TRC20", "BEP20"],

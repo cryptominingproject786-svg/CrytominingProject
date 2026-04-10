@@ -223,7 +223,7 @@ export default function WithdrawDetailClient({ withdrawId }) {
                 const res = await fetch(`/api/withdraw/admin/${withdrawId}`);
                 const json = await res.json();
                 if (!res.ok) throw new Error(json.error || "Failed to load withdrawal");
-                if (!canceled) setWithdraw(json.data);
+                if (!canceled) setWithdraw(json.data ?? json);
             } catch (e) {
                 if (!canceled) setFetchError(e.message);
             } finally {
@@ -251,7 +251,7 @@ export default function WithdrawDetailClient({ withdrawId }) {
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || "Action failed");
 
-            setWithdraw(json.data);
+            setWithdraw(json.data ?? json);
             setSuccessMsg(newStatus === "approved"
                 ? "Withdrawal approved — balance deducted from user."
                 : "Withdrawal rejected."
@@ -333,6 +333,11 @@ export default function WithdrawDetailClient({ withdrawId }) {
                 {!loading && withdraw && (() => {
                     const username = withdraw.user?.username;
                     const email = withdraw.user?.email;
+                        const numericAmount = Number(withdraw.amount ?? 0);
+                    const feeAmount = Number(
+                        ((withdraw.fee ?? Math.round(numericAmount * 0.05 * 100) / 100) || 0).toFixed(2)
+                    );
+                    const netAmount = Number((numericAmount - feeAmount).toFixed(2));
                     return (
                         <>
                             {/* Status + user identity hero */}
@@ -361,7 +366,9 @@ export default function WithdrawDetailClient({ withdrawId }) {
                             {/* Withdraw details */}
                             <SectionCard title="Withdrawal Details" accent="yellow">
                                 <InfoRow label="Network" value={withdraw.network} />
-                                <InfoRow label="Amount" value={`${withdraw.amount} USDT`} accent />
+                                <InfoRow label="Requested Amount" value={`${withdraw.amount} USDT`} accent />
+                                <InfoRow label="Fee (5%)" value={`${feeAmount} USDT`} />
+                                <InfoRow label="Remaining Amount" value={`${netAmount} USDT`} accent />
                                 <InfoRow label="TXID" value={withdraw.txId} mono copy />
                                 <InfoRow
                                     label="Requested"
@@ -444,9 +451,8 @@ export default function WithdrawDetailClient({ withdrawId }) {
 
                                         {/* Warning note */}
                                         <p className="text-xs text-gray-500 bg-yellow-400/5 border border-yellow-400/10 rounded-2xl p-4 leading-relaxed">
-                                            ℹ Approving will immediately deduct{" "}
-                                            <strong className="text-yellow-400">{withdraw.amount} USDT</strong>{" "}
-                                            from the user's balance. This action cannot be undone.
+                                            ℹ Approving will immediately deduct the requested amount from the user&apos;s balance and the fee will be retained.
+                                            Net payout after 5% fee is <strong className="text-yellow-400">{netAmount} USDT</strong>.
                                         </p>
 
                                         {/* Approve / Reject */}

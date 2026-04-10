@@ -7,18 +7,22 @@ import React, { useState, useCallback, useMemo, memo } from "react";
 
 const NETWORKS = Object.freeze(["TRC20", "BEP20"]);
 
+// TRC20 addresses: start with "T", exactly 34 characters
+// BEP20 addresses: start with "0x", exactly 42 characters
 const NETWORK_CONFIG = Object.freeze({
     TRC20: {
-        placeholder: "Enter TRC20 TXID",
-        minLength: 20,
-        validator: (txid) => txid.length >= 20,
-        errorMsg: "Invalid TRC20 TXID",
+        placeholder: "e.g. TLiyJWr8A78tU3PCfKspr9F2yW1NNguvg8",
+        exactLength: 34,
+        validator: (address) =>
+            address.startsWith("T") && address.length === 34,
+        errorMsg: "TRC20 address must start with 'T' and be exactly 34 characters",
     },
     BEP20: {
-        placeholder: "0xff2222bd53be58e8900e84e9e7fd54e647cc5d02",
-        minLength: 42,
-        validator: (txid) => txid.startsWith("0x"),
-        errorMsg: "BEP20 TXID must start with 0x",
+        placeholder: "e.g. 0x7658427957142ed434de190c9bb53e5b6d8e4e94",
+        exactLength: 42,
+        validator: (address) =>
+            address.startsWith("0x") && address.length === 42,
+        errorMsg: "BEP20 address must start with '0x' and be exactly 42 characters",
     },
 });
 
@@ -28,15 +32,21 @@ Object.freeze(NETWORK_CONFIG);
 // VALIDATION UTILITY (pure, memoizable)
 // ────────────────────────────────────────────────────────────────────────────
 
-const validateWithdrawal = (txid, amount, balance, network) => {
+const validateWithdrawal = (address, amount, balance, network) => {
     const numAmount = Number(amount);
-
-    if (!txid) return "TXID is required";
-    if (!numAmount || numAmount <= 0) return "Enter valid amount";
-    if (numAmount > balance) return "You can't enter more than available balance";
-
     const config = NETWORK_CONFIG[network];
-    if (!config.validator(txid)) return config.errorMsg;
+
+    if (!address) return "Address is required";
+
+    // Reject wrong-network addresses immediately
+    if (network === "TRC20" && address.startsWith("0x"))
+        return "This looks like a BEP20 address. Please switch to BEP20 or enter a TRC20 address.";
+    if (network === "BEP20" && address.startsWith("T"))
+        return "This looks like a TRC20 address. Please switch to TRC20 or enter a BEP20 address.";
+
+    if (!config.validator(address)) return config.errorMsg;
+    if (!numAmount || numAmount <= 0) return "Enter a valid amount";
+    if (numAmount > balance) return "Amount exceeds available balance";
 
     return "";
 };
@@ -45,41 +55,29 @@ const validateWithdrawal = (txid, amount, balance, network) => {
 // MEMOIZED SUB-COMPONENTS
 // ────────────────────────────────────────────────────────────────────────────
 
-/**
- * NetworkButton — Memoized to prevent re-renders
- * Only re-renders if network or isSelected prop changes
- */
 const NetworkButton = memo(
     function NetworkButton({ network, isSelected, onClick }) {
         return (
             <button
                 onClick={onClick}
                 aria-pressed={isSelected}
-                className={`flex-1 py-2 rounded-xl font-bold transition ${isSelected
-                    ? "bg-yellow-400 text-black"
-                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                    }`}
+                className={`flex-1 py-2 rounded-xl font-bold transition ${
+                    isSelected
+                        ? "bg-yellow-400 text-black"
+                        : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                }`}
                 type="button"
             >
                 {network}
             </button>
         );
     },
-    (prevProps, nextProps) => {
-        // Custom comparison: only re-render if network or isSelected changes
-        return (
-            prevProps.network === nextProps.network &&
-            prevProps.isSelected === nextProps.isSelected
-        );
-    }
+    (prev, next) =>
+        prev.network === next.network && prev.isSelected === next.isSelected
 );
 
-/**
- * InputField — Memoized input component
- * Only re-renders if value prop changes
- */
 const InputField = memo(
-    function InputField({ label, value, onChange, placeholder, maxValue, type = "text" }) {
+    function InputField({ label, value, onChange, placeholder, maxValue, type = "text", hint }) {
         return (
             <section className="space-y-2">
                 <label className="text-sm text-gray-300 block font-medium">{label}</label>
@@ -93,6 +91,9 @@ const InputField = memo(
                     className="w-full p-3 rounded-xl bg-black border border-gray-700 focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 outline-none text-white transition"
                     aria-label={label}
                 />
+                {hint && (
+                    <p className="text-xs text-gray-500">{hint}</p>
+                )}
                 {maxValue && type === "number" && (
                     <p className="text-xs text-gray-500">
                         Available balance: ${maxValue}
@@ -101,19 +102,15 @@ const InputField = memo(
             </section>
         );
     },
-    (prevProps, nextProps) => {
-        // Re-render only if value actually changes
-        return prevProps.value === nextProps.value && prevProps.maxValue === nextProps.maxValue;
-    }
+    (prev, next) =>
+        prev.value === next.value &&
+        prev.maxValue === next.maxValue &&
+        prev.placeholder === next.placeholder &&
+        prev.hint === next.hint
 );
 
-/**
- * ErrorMessage — Memoized error display
- * Only renders if error message changes
- */
 const ErrorMessage = memo(function ErrorMessage({ error }) {
     if (!error) return null;
-
     return (
         <div
             role="alert"
@@ -125,10 +122,6 @@ const ErrorMessage = memo(function ErrorMessage({ error }) {
     );
 });
 
-/**
- * NetworkSelector — Memoized network selection
- * Only re-renders if network prop changes
- */
 const NetworkSelector = memo(
     function NetworkSelector({ network, onNetworkChange }) {
         return (
@@ -149,7 +142,7 @@ const NetworkSelector = memo(
             </section>
         );
     },
-    (prevProps, nextProps) => prevProps.network === nextProps.network
+    (prev, next) => prev.network === next.network
 );
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -157,98 +150,85 @@ const NetworkSelector = memo(
 // ────────────────────────────────────────────────────────────────────────────
 
 function WithdrawModal({ onClose, balance = 0 }) {
-    // ── State (minimal) ──
     const [network, setNetwork] = useState("TRC20");
-    const [txid, setTxid] = useState("");
+    const [address, setAddress] = useState("");
     const [amount, setAmount] = useState("");
     const [error, setError] = useState("");
 
     // ── Memoized validation ──
-    // Only recalculates when txid, amount, balance, or network changes
-    // This function is expensive (multiple checks), so memo it
     const validationError = useMemo(() => {
-        if (!txid && !amount) return ""; // Don't validate empty form until submit
-        return validateWithdrawal(txid, amount, balance, network);
-    }, [txid, amount, balance, network]);
+        if (!address && !amount) return "";
+        return validateWithdrawal(address, amount, balance, network);
+    }, [address, amount, balance, network]);
 
-    // ── Memoized handlers (stable references) ──
-    // Prevent child components from re-rendering due to new function references
+    // ── Handlers ──
 
+    // Clear address when switching networks to prevent cross-network entries
     const handleNetworkChange = useCallback((newNetwork) => {
         setNetwork(newNetwork);
-        setError(""); // Clear error when changing network
+        setAddress("");   // reset address so wrong-network value can't persist
+        setError("");
     }, []);
 
-    const handleTxidChange = useCallback((e) => {
+    const handleAddressChange = useCallback((e) => {
         const value = e.target.value;
-        setTxid(value);
-        setError(""); // Clear error on input change
-    }, []);
+
+        // Soft guard: warn immediately if the user pastes the wrong network prefix
+        if (network === "TRC20" && value.startsWith("0x")) {
+            setError("You selected TRC20. Please enter a TRC20 address (starts with 'T').");
+        } else if (network === "BEP20" && value.startsWith("T")) {
+            setError("You selected BEP20. Please enter a BEP20 address (starts with '0x').");
+        } else {
+            setError("");
+        }
+
+        setAddress(value);
+    }, [network]);
 
     const handleAmountChange = useCallback((e) => {
         const value = e.target.value;
-        const numValue = Number(value);
-
-        // Prevent entering more than balance
-        if (numValue > balance && value !== "") {
-            setError("You can't enter more than available balance");
+        if (Number(value) > balance && value !== "") {
+            setError("Amount exceeds available balance");
             return;
         }
-
         setAmount(value);
         setError("");
     }, [balance]);
 
     const handleSubmit = useCallback(async () => {
-        // Validate on submit
-        const err = validateWithdrawal(txid, amount, balance, network);
+        const err = validateWithdrawal(address, amount, balance, network);
+        if (err) { setError(err); return; }
 
-        if (err) {
-            setError(err);
-            return;
-        }
-
-        // Clear error and submit
         setError("");
-
         try {
             const res = await fetch("/api/withdraw", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ network, txId: txid, amount: Number(amount) }),
+                body: JSON.stringify({ network, address, amount: Number(amount),   address: address.trim() }),
             });
-
             const json = await res.json();
-            console.log("Withdrawal response:", json);
-            if (!res.ok) {
-                throw new Error(json.error || "Withdrawal request failed");
-            }
-
+            if (!res.ok) throw new Error(json.error || "Withdrawal request failed");
             onClose();
         } catch (e) {
             setError(e.message);
         }
-    }, [txid, amount, balance, network, onClose]);
+    }, [address, amount, balance, network, onClose]);
 
-    // ── Modal structure ──
-    // Semantic HTML for SEO
+    const config = NETWORK_CONFIG[network];
+
     return (
         <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
             role="presentation"
             aria-modal="true"
         >
-            {/* Modal Card */}
             <section
                 aria-labelledby="withdraw-title"
                 className="w-full max-w-md bg-gradient-to-br from-gray-900 to-black border border-yellow-400 rounded-3xl shadow-2xl p-6 space-y-5 animate-fadeIn"
             >
                 {/* Header */}
                 <header className="space-y-1">
-                    <h2
-                        id="withdraw-title"
-                        className="text-2xl font-extrabold text-yellow-400"
-                    >
+                    <h2 id="withdraw-title" className="text-2xl font-extrabold text-yellow-400">
                         Withdraw Funds
                     </h2>
                     <p className="text-sm text-gray-400">
@@ -257,18 +237,16 @@ function WithdrawModal({ onClose, balance = 0 }) {
                 </header>
 
                 {/* Network Selection */}
-                <NetworkSelector
-                    network={network}
-                    onNetworkChange={handleNetworkChange}
-                />
+                <NetworkSelector network={network} onNetworkChange={handleNetworkChange} />
 
-                {/* TXID Input */}
+                {/* Address Input */}
                 <InputField
-                    label={`TXID (${network})`}
-                    value={txid}
-                    onChange={handleTxidChange}
-                    placeholder={NETWORK_CONFIG[network].placeholder}
+                    label={`Address (${network})`}
+                    value={address}
+                    onChange={handleAddressChange}
+                    placeholder={config.placeholder}
                     type="text"
+                    hint={`Must start with '${network === "TRC20" ? "T" : "0x"}' · exactly ${config.exactLength} characters`}
                 />
 
                 {/* Amount Input */}
@@ -281,7 +259,7 @@ function WithdrawModal({ onClose, balance = 0 }) {
                     maxValue={balance}
                 />
 
-                {/* Error Message (only renders if error exists) */}
+                {/* Error Message */}
                 <ErrorMessage error={error} />
 
                 {/* Actions */}
@@ -293,10 +271,9 @@ function WithdrawModal({ onClose, balance = 0 }) {
                     >
                         Cancel
                     </button>
-
                     <button
                         onClick={handleSubmit}
-                        disabled={!!validationError || (!txid && !amount)}
+                        disabled={!!validationError || (!address && !amount)}
                         className="flex-1 py-2 rounded-xl bg-yellow-400 text-black font-bold hover:scale-105 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         type="button"
                         aria-label="Submit withdrawal request"
@@ -305,7 +282,6 @@ function WithdrawModal({ onClose, balance = 0 }) {
                     </button>
                 </div>
 
-                {/* Hidden metadata for SEO */}
                 <script type="application/ld+json">
                     {JSON.stringify({
                         "@context": "https://schema.org",
@@ -319,14 +295,6 @@ function WithdrawModal({ onClose, balance = 0 }) {
     );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// EXPORT (memoized to prevent re-renders on parent updates)
-// ────────────────────────────────────────────────────────────────────────────
-
-export default memo(WithdrawModal, (prevProps, nextProps) => {
-    // Custom comparison: only re-render if onClose or balance actually changes
-    return (
-        prevProps.onClose === nextProps.onClose &&
-        prevProps.balance === nextProps.balance
-    );
-});
+export default memo(WithdrawModal, (prev, next) =>
+    prev.onClose === next.onClose && prev.balance === next.balance
+);

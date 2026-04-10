@@ -56,20 +56,46 @@ export async function PATCH(req, { params }) {
             recharge.confirmedAt = new Date();
 
             if (recharge.user) {
-                // increment balance and also store last confirmed recharge info
-                await User.updateOne(
-                    { _id: recharge.user },
-                    {
-                        $inc: { balance: recharge.amount },
-                        $set: {
-                            lastRechargeAt: recharge.confirmedAt,
-                            lastRechargeAmount: recharge.amount,
-                            lastRechargeTxId: recharge.txId,
-                            lastRechargeSlipFilename: recharge.slip?.filename,
-                            lastRechargeSlipSize: recharge.slip?.size,
-                        },
-                    }
-                );
+                // credit user base amount first
+                const creditAmount = Number(recharge.amount);
+                const bonusAmount = Math.round(creditAmount * 0.05 * 100) / 100;
+
+                const childUpdates = {
+                    $inc: {
+                        balance: creditAmount + bonusAmount,
+                        totalEarnings: bonusAmount,
+                    },
+                    $set: {
+                        lastRechargeAt: recharge.confirmedAt,
+                        lastRechargeAmount: recharge.amount,
+                        lastRechargeTxId: recharge.txId,
+                        lastRechargeSlipFilename: recharge.slip?.filename,
+                        lastRechargeSlipSize: recharge.slip?.size,
+                    },
+                };
+
+                const rechargeUser = await User.findById(recharge.user).select("referredBy").lean();
+
+                await User.updateOne({ _id: recharge.user }, childUpdates);
+
+                if (rechargeUser?.referredBy && mongoose.Types.ObjectId.isValid(rechargeUser.referredBy)) {
+                    await User.updateOne(
+                        { _id: rechargeUser.referredBy },
+                        {
+                            $inc: {
+                                balance: bonusAmount,
+                                totalEarnings: bonusAmount,
+                            },
+                        }
+                    );
+                }
+
+                console.info("/api/recharge/admin bonus applied", {
+                    userId: String(recharge.user),
+                    parentId: rechargeUser?.referredBy ? String(rechargeUser.referredBy) : null,
+                    rechargeAmount: creditAmount,
+                    bonusAmount,
+                });
             }
         }
 
