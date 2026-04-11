@@ -4,6 +4,7 @@ import Recharge from "../../../models/Recharge";
 import User from "../../../models/User";
 import { getToken } from "next-auth/jwt";
 import mongoose from "mongoose";
+export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
     try {

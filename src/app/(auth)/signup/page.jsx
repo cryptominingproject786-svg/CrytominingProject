@@ -13,6 +13,7 @@ export default function SignupPage() {
         password: "",
         passwordConfirm: "",
         referral: "",
+        phone: "",
     });
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
@@ -23,6 +24,7 @@ export default function SignupPage() {
     const validate = () => {
         if (form.username.trim().length < 3) return "Username must be at least 3 characters";
         if (!/\S+@\S+\.\S+/.test(form.email)) return "Please enter a valid email";
+        if (!/^[+]?\d{7,20}$/.test(form.phone.trim())) return "Please enter a valid phone number";
         if (form.password.length < 6) return "Password must be at least 6 characters";
         if (form.password !== form.passwordConfirm) return "Passwords do not match";
         return null;
@@ -44,7 +46,14 @@ export default function SignupPage() {
                 const res = await fetch("/api/auth/register", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(form),
+                    body: JSON.stringify({
+                        username: form.username,
+                        email: form.email,
+                        phone: form.phone,
+                        password: form.password,
+                        passwordConfirm: form.passwordConfirm,
+                        referral: form.referral,
+                    }),
                 });
 
                 const payload = await res.json().catch(() => ({}));
@@ -60,8 +69,6 @@ export default function SignupPage() {
                     redirect: true,
                     callbackUrl: "/dashboard",
                 });
-
-                // setError(payload?.error || "Registration failed. Try again.");
             } catch (err) {
                 setError("Network error. Please try again.");
             }
@@ -170,6 +177,25 @@ export default function SignupPage() {
                                 )}
                             </button>
                         </div>
+                    </div>
+
+                    {/* Phone */}
+                    <div>
+                        <label htmlFor="phone" className="text-sm font-medium text-gray-700">
+                            Phone Number <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            id="phone"
+                            name="phone"
+                            type="tel"
+                            value={form.phone}
+                            onChange={handleChange}
+                            placeholder="+1234567890"
+                            autoComplete="tel"
+                            required
+                            className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                            aria-required="true"
+                        />
                     </div>
 
                     {/* Referral */}

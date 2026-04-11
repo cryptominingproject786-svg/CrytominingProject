@@ -2,6 +2,7 @@ import connectDB from "../../../lib/mongoDb";
 import Investment from "../../../models/Investment";
 import { calculateProfit } from "../../../lib/calcProfit";
 import { getToken } from "next-auth/jwt";
+export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
 

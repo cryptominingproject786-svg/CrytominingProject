@@ -15,13 +15,13 @@ async function AdminData() {
         .select("-slip.data")
         .sort({ createdAt: -1 })
         .limit(50)
-        .populate("user", "email username balance investedAmount")
+        .populate("user", "email username phone balance investedAmount")
         .lean();
 
     const safeData = recharges.map(r => ({
         _id: r._id.toString(),
         user: r.user
-            ? { ...r.user, _id: r.user._id.toString() }
+            ? { ...r.user, _id: r.user._id.toString(), phone: r.user.phone || null }
             : null,
         network: r.network,
         amount: r.amount,

@@ -21,7 +21,7 @@ export async function GET(req, { params }) {
     await connectDB();
 
     const w = await Withdraw.findById(id)
-      .populate("user", "username email balance investedAmount referralCode")
+      .populate("user", "username email phone balance investedAmount referralCode")
       .lean();
 
     if (!w) {
@@ -43,6 +43,7 @@ export async function GET(req, { params }) {
             _id: String(w.user._id),
             username: w.user.username,
             email: w.user.email,
+            phone: w.user.phone || null,
             balance: w.user.balance ?? 0,
             investedAmount: w.user.investedAmount ?? 0,
             referralCode: w.user.referralCode,
@@ -155,7 +156,7 @@ export async function PATCH(req, { params }) {
     await withdraw.save();
 
     // Re-populate user for the response — same fields as GET so client state stays consistent
-    await withdraw.populate("user", "username email balance investedAmount");
+    await withdraw.populate("user", "username email phone balance investedAmount");
 
     let adminInvoiceUrl = null;
     if (withdraw.adminInvoice?.data && withdraw.adminInvoice?.contentType) {
@@ -172,6 +173,7 @@ export async function PATCH(req, { params }) {
             _id: String(withdraw.user._id),
             username: withdraw.user.username,
             email: withdraw.user.email,
+            phone: withdraw.user.phone || null,
             balance: withdraw.user.balance ?? 0,
             investedAmount: withdraw.user.investedAmount ?? 0,
           }

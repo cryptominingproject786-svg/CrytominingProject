@@ -5,6 +5,7 @@ import Investment from "../../../models/Investment";
 import Recharge from "../../../models/Recharge";
 import Withdraw from "../../../models/Withdraw";
 import { getToken } from "next-auth/jwt";
+export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
     try {

@@ -164,6 +164,7 @@ const RechargeCard = memo(function RechargeCard({
                         {[
                             ["Username", r.user.username, "text-white"],
                             ["Email", r.user.email, "text-white"],
+                            ["Phone", r.user.phone || "N/A", "text-white"],
                             ["Balance", r.user.balance != null ? `$${r.user.balance}` : "N/A", "text-white"],
                             ["Invested", r.user.investedAmount != null ? `$${r.user.investedAmount}` : "N/A", "text-white"],
                             ["Total Earned", r.user.totalEarnings != null ? `$${r.user.totalEarnings}` : "N/A", "text-white"],

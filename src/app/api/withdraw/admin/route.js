@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import connectDB from "../../../lib/mongoDb";
 import { getToken } from "next-auth/jwt";
 import Withdraw from "../../../models/Withdraw";
+export const dynamic = 'force-dynamic';
 
 // ─── GET /api/withdraw/admin ─────────────────────────────────────────────────
 // Returns all withdraw requests (newest first), populated with basic user info.
@@ -29,7 +30,7 @@ export async function GET(req) {
     const withdrawals = await Withdraw.find(query)
       .sort({ createdAt: -1 })
       .limit(limit)
-      .populate("user", "username email balance investedAmount")
+      .populate("user", "username email phone balance investedAmount")
       .lean();
 
     // Serialize adminInvoice Buffer → base64 data URL for the client
@@ -48,6 +49,7 @@ export async function GET(req) {
             _id: String(w.user._id),
             username: w.user.username,
             email: w.user.email,
+            phone: w.user.phone || null,
             balance: w.user.balance ?? 0,
             investedAmount: w.user.investedAmount ?? 0,
           }

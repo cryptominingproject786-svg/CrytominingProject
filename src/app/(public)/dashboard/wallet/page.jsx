@@ -253,18 +253,33 @@ export default function WalletPage() {
                                     <p className="mt-2 text-sm text-gray-100">
                                         {w.network} • {w.amount} USDT • TXID: {w.txId}
                                     </p>
-                                    {w.adminInvoice && (
-                                        <div className="mt-2">
-                                            <a
-                                                href={w.adminInvoice}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="text-blue-400 underline text-sm"
-                                            >
-                                                View admin invoice
-                                            </a>
-                                        </div>
-                                    )}
+                                    {w.adminInvoice ? (
+                                        typeof w.adminInvoice === "string" && w.adminInvoice.startsWith("data:") ? (
+                                            <div className="mt-4 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-inner">
+                                                <div className="px-4 py-3 border-b border-slate-800 bg-slate-900/80">
+                                                    <p className="text-xs uppercase tracking-wide text-gray-400">
+                                                        Admin Invoice
+                                                    </p>
+                                                </div>
+                                                <img
+                                                    src={w.adminInvoice}
+                                                    alt={`Invoice for withdrawal ${w.txId}`}
+                                                    className="w-full max-h-72 object-contain bg-black"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="mt-2">
+                                                <a
+                                                    href={w.adminInvoice}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="text-blue-400 underline text-sm"
+                                                >
+                                                    View admin invoice
+                                                </a>
+                                            </div>
+                                        )
+                                    ) : null}
                                 </article>
                             ))}
                         </div>

@@ -5,12 +5,16 @@ import User from "../../../../models/User";
 export async function POST(req) {
     try {
         const body = await req.json();
-        const { username, email, password, passwordConfirm, adminCode } = body || {};
-        if (!username || !email || !password || !passwordConfirm || !adminCode) {
+        const { username, email, phone, password, passwordConfirm, adminCode } = body || {};
+        if (!username || !email || !phone || !password || !passwordConfirm || !adminCode) {
             return NextResponse.json({ error: "Missing fields" }, { status: 400 });
         }
         if (password !== passwordConfirm) {
             return NextResponse.json({ error: "Passwords do not match" }, { status: 400 });
+        }
+        const phoneValue = String(phone || "").trim();
+        if (phoneValue.length < 7 || phoneValue.length > 20) {
+            return NextResponse.json({ error: "Invalid phone number" }, { status: 400 });
         }
 
         // Require a server-side admin code to prevent public admin creation
@@ -90,7 +94,7 @@ export async function POST(req) {
             return NextResponse.json({ error: "Email already in use" }, { status: 409 });
         }
 
-        const user = await User.create({ username, email: normalized, password, isVerified: true, role: "admin" });
+        const user = await User.create({ username, email: normalized, phone: phoneValue, password, isVerified: true, role: "admin" });
         console.info("/api/auth/admin/register: created user", { id: String(user._id) });
 
         return NextResponse.json({ status: "created", id: String(user._id) }, { status: 201 });

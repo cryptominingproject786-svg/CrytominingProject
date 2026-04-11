@@ -3,6 +3,7 @@ import connectDB from "../../../lib/mongoDb";
 import Recharge from "../../../models/Recharge";
 import User from "../../../models/User";
 import { getToken } from "next-auth/jwt";
+export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
     try {
@@ -25,7 +26,7 @@ export async function GET(req) {
             .sort({ createdAt: -1 })
             .limit(limit)
             // select fields admins care about so we can render full user summary client-side
-            .populate("user", "username email balance investedAmount totalEarnings dailyProfit role")
+            .populate("user", "username email phone balance investedAmount totalEarnings dailyProfit role")
             .lean();
 
         // debug: inspect first document to ensure user was populated

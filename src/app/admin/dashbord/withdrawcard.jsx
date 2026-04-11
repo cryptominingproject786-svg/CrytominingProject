@@ -21,9 +21,10 @@ async function fetchWithdrawsFromAPI() {
     const json = await res.json();
     if (!res.ok) throw new Error(json?.error || `Server error ${res.status}`);
     const data = json.data ?? json.withdraws ?? json;
-    _cache.data = data;
+    const safeData = Array.isArray(data) ? data : [];
+    _cache.data = safeData;
     _cache.ts = now;
-    return data;
+    return safeData;
 }
 
 function invalidateCache() {
@@ -94,6 +95,7 @@ const InfoCell = memo(function InfoCell({ label, value, accent }) {
 
 // ── WithdrawItem — one card ───────────────────────────────────────────────────
 const WithdrawItem = memo(function WithdrawItem({ withdraw: w, isLoading, onUpdateStatus }) {
+    if (!w) return null;
     const router = useRouter();
     const cfg = STATUS_CFG[w.status] ?? STATUS_CFG.pending;
 
@@ -285,8 +287,8 @@ const FilterTab = memo(function FilterTab({ label, count, active, onClick }) {
 
 // ── WithdrawCard — default export ─────────────────────────────────────────────
 export default function WithdrawCard() {
-    const [withdraws, setWithdraws] = useState(_cache.data ?? []);
-    const [loading, setLoading] = useState(!_cache.data);
+    const [withdraws, setWithdraws] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [updatingId, setUpdatingId] = useState(null);
     const [filter, setFilter] = useState("all");
@@ -309,6 +311,10 @@ export default function WithdrawCard() {
     }, []);
 
     useEffect(() => {
+        if (_cache.data) {
+            setWithdraws(_cache.data);
+            setLoading(false);
+        }
         loadData();
         return () => abortRef.current?.abort();
     }, [loadData]);
@@ -341,10 +347,10 @@ export default function WithdrawCard() {
         rejected: withdraws.filter((w) => w.status === "rejected").length,
     }), [withdraws]);
 
-    const filtered = useMemo(() =>
-        filter === "all" ? withdraws : withdraws.filter((w) => w.status === filter),
-        [withdraws, filter]
-    );
+    const filtered = useMemo(() => {
+        const items = Array.isArray(withdraws) ? withdraws.filter(Boolean) : [];
+        return filter === "all" ? items : items.filter((w) => w.status === filter);
+    }, [withdraws, filter]);
 
     // ── Error state ───────────────────────────────────────────────────────────
     if (error) return (

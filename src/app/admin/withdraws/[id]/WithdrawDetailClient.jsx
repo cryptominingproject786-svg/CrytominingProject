@@ -1,15 +1,4 @@
 "use client";
-
-/**
- * WithdrawDetailClient.jsx
- * ─────────────────────────────────────────────────────────────────────────────
- * Withdraw detail / action page for admins.
- * • All logic preserved exactly — only UI improved
- * • memo + useCallback on every handler → zero unnecessary re-renders
- * • Semantic HTML + ARIA + Schema.org for SEO & accessibility
- * • Unified design language: matches adminclient + withdrawcard exactly
- */
-
 import React, {
     useState,
     useEffect,
@@ -333,7 +322,7 @@ export default function WithdrawDetailClient({ withdrawId }) {
                 {!loading && withdraw && (() => {
                     const username = withdraw.user?.username;
                     const email = withdraw.user?.email;
-                        const numericAmount = Number(withdraw.amount ?? 0);
+                    const numericAmount = Number(withdraw.amount ?? 0);
                     const feeAmount = Number(
                         ((withdraw.fee ?? Math.round(numericAmount * 0.05 * 100) / 100) || 0).toFixed(2)
                     );
@@ -389,6 +378,7 @@ export default function WithdrawDetailClient({ withdrawId }) {
                                 <SectionCard title="User Details" accent="yellow">
                                     <InfoRow label="Username" value={username} />
                                     <InfoRow label="Email" value={email} />
+                                    <InfoRow label="Phone" value={withdraw.user.phone || "N/A"} />
                                     <InfoRow
                                         label="Balance"
                                         value={`$${Number(withdraw.user.balance ?? 0).toFixed(2)}`}
@@ -402,11 +392,11 @@ export default function WithdrawDetailClient({ withdrawId }) {
                             )}
 
                             {/* Existing admin invoice */}
-                            {withdraw.adminInvoice && (
+                            {withdraw?.adminInvoice && (
                                 <SectionCard title="Admin Invoice" accent="green">
                                     <div className="py-3">
                                         <img
-                                            src={withdraw.adminInvoice}
+                                            src={withdraw?.adminInvoice}
                                             alt="Admin invoice"
                                             className="w-full rounded-2xl border border-white/10 object-contain max-h-80"
                                         />

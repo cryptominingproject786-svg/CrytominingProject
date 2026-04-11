@@ -8,6 +8,7 @@ import { signIn } from "next-auth/react";
 export default function AdminSignUpClient() {
     const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
+    const [phone, setPhone] = useState("");
     const [password, setPassword] = useState("");
     const [passwordConfirm, setPasswordConfirm] = useState("");
     const [adminCode, setAdminCode] = useState("");
@@ -20,25 +21,29 @@ export default function AdminSignUpClient() {
         e.preventDefault();
         setError("");
         setSuccess("");
+
         if (password !== passwordConfirm) {
             setError("Passwords do not match");
             return;
         }
+        if (!phone.trim()) {
+            setError("Phone number is required");
+            return;
+        }
+
         setLoading(true);
         try {
             const res = await fetch("/api/auth/admin/register", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, email, password, passwordConfirm, adminCode }),
+                body: JSON.stringify({ username, email, phone, password, passwordConfirm, adminCode }),
             });
 
-            // read the response as text so we can handle non-JSON gracefully
             const text = await res.text();
-            let json;
+            let json = {};
             try {
                 json = text ? JSON.parse(text) : {};
             } catch (parseErr) {
-                // if we got HTML or anything unexpected, log it and throw so it is caught below
                 console.error("Unexpected non-JSON response from /api/auth/admin/register:", text);
                 throw new Error("Invalid JSON response");
             }
@@ -50,15 +55,12 @@ export default function AdminSignUpClient() {
             }
 
             setSuccess("Admin created. Signing you in...");
-
             await signIn("credentials", {
                 email,
                 password,
                 redirect: false,
             });
-
             router.push("/admin");
-
         } catch (err) {
             setLoading(false);
             setError("Server error");
@@ -78,6 +80,10 @@ export default function AdminSignUpClient() {
                     <div>
                         <label className="block text-sm font-medium">Email</label>
                         <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required className="mt-1 w-full border rounded px-3 py-2" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium">Phone Number</label>
+                        <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" required autoComplete="tel" placeholder="+1234567890" className="mt-1 w-full border rounded px-3 py-2" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium">Password</label>

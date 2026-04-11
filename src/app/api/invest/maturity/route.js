@@ -3,6 +3,7 @@ import connectDB from "../../../lib/mongoDb";
 import User from "../../../models/User";
 import Investment from "../../../models/Investment";
 import { getToken } from "next-auth/jwt";
+export const dynamic = 'force-dynamic';
 
 export async function POST(req) {
     try {

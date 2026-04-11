@@ -8,20 +8,20 @@ import {
 } from "../../../Redux/Slices/InvestmentSlice";
 
 // ── InvestmentCard ────────────────────────────────────────────────────────────
-const InvestmentCard = ({ inv, onClaim }) => {
+const InvestmentCard = ({ inv, onClaim, nowTime }) => {
     const [claiming, setClaiming] = useState(false);
     const [claimError, setClaimError] = useState(null);
 
     const start = new Date(inv.startDate);
     const end = new Date(inv.maturityDate);
-    const now = new Date();
+    const now = new Date(nowTime);
 
-    const totalSeconds = (end - start) / 1000;
+    const totalSeconds = Math.max(1, (end - start) / 1000);
     const passedSeconds = Math.max(0, (now - start) / 1000);
     const percent = Math.min(100, Math.round((passedSeconds / totalSeconds) * 100));
 
     // ── Is this investment ready to claim? ────────────────────────────────────
-    const isMatured = now >= end && inv.status === "active";
+    const isMatured = !Number.isNaN(end.getTime()) && now >= end && inv.status === "active";
 
     const statusColor =
         inv.status === "active"
@@ -169,6 +169,12 @@ export default function InvestmentSection() {
     const { data: investments, loading, error } = useSelector(
         (state) => state.investments
     );
+    const [now, setNow] = useState(Date.now());
+
+    useEffect(() => {
+        const timer = setInterval(() => setNow(Date.now()), 10000);
+        return () => clearInterval(timer);
+    }, []);
 
     // ── Fetch investments ─────────────────────────────────────────────────────
     const fetchInvestments = useCallback(async () => {
@@ -251,6 +257,7 @@ export default function InvestmentSection() {
                         <InvestmentCard
                             key={inv._id}
                             inv={inv}
+                            nowTime={now}
                             onClaim={handleClaimed}
                         />
                     ))}

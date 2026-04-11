@@ -4,6 +4,7 @@ import { getToken } from "next-auth/jwt";
 import User from "../../../models/User";
 import Withdraw from "../../../models/Withdraw";
 import Investment from "../../../models/Investment";
+export const dynamic = 'force-dynamic';
 
 // ─── Validators (mirrors withdrawmodal.jsx client-side rules) ────────────────
 const VALIDATORS = {
@@ -181,15 +182,37 @@ export async function GET(req) {
                 teamEarnings: user.totalEarnings ?? 0,
                 totalWithdrawals: totalWithdrawals[0]?.total ?? 0,
                 referralCount: user.referralCount ?? 0,
-                withdrawRequests: withdrawRequests.map((w) => ({
-                    id: String(w._id),
-                    network: w.network,
-                    txId: w.txId,
-                    amount: w.amount,
-                    status: w.status,
-                    requestedAt: w.requestedAt,
-                    adminInvoice: w.adminInvoice || null,
-                })),
+                withdrawRequests: withdrawRequests.map((w) => {
+                    let adminInvoice = null;
+
+                    if (typeof w.adminInvoice === "string" && w.adminInvoice.startsWith("data:")) {
+                        adminInvoice = w.adminInvoice;
+                    } else if (w.adminInvoice?.data && w.adminInvoice?.contentType) {
+                        let base64String = null;
+
+                        if (Buffer.isBuffer(w.adminInvoice.data)) {
+                            base64String = w.adminInvoice.data.toString("base64");
+                        } else if (w.adminInvoice.data?.buffer) {
+                            base64String = Buffer.from(w.adminInvoice.data.buffer).toString("base64");
+                        } else if (typeof w.adminInvoice.data === "string") {
+                            base64String = w.adminInvoice.data;
+                        }
+
+                        if (base64String) {
+                            adminInvoice = `data:${w.adminInvoice.contentType};base64,${base64String}`;
+                        }
+                    }
+
+                    return {
+                        id: String(w._id),
+                        network: w.network,
+                        txId: w.txId,
+                        amount: w.amount,
+                        status: w.status,
+                        requestedAt: w.requestedAt,
+                        adminInvoice,
+                    };
+                }),
             },
         });
     } catch (err) {

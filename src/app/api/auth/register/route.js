@@ -26,9 +26,13 @@ export async function POST(req) {
         }
 
         const body = await req.json();
-        const { username, email, password, passwordConfirm, referral } = body || {};
-        if (!username || !email || !password || !passwordConfirm) {
+        const { username, email, phone, password, passwordConfirm, referral } = body || {};
+        if (!username || !email || !phone || !password || !passwordConfirm) {
             return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+        }
+
+        if (!/^[+]?\d{7,20}$/.test(String(phone).trim())) {
+            return NextResponse.json({ error: "Invalid phone number" }, { status: 400 });
         }
 
         if (password !== passwordConfirm) {
@@ -56,10 +60,19 @@ export async function POST(req) {
         const myReferral = await generateUniqueReferralCode(8);
 
         if (!user) {
-            user = await User.create({ username, email: normalized, password, isVerified: true, referralCode: myReferral, referredBy: referrerUser?._id || undefined });
+            user = await User.create({
+                username,
+                email: normalized,
+                phone: String(phone).trim(),
+                password,
+                isVerified: true,
+                referralCode: myReferral,
+                referredBy: referrerUser?._id || undefined,
+            });
         } else {
             // update existing unverified user
             user.username = username || user.username;
+            user.phone = String(phone).trim();
             user.isVerified = true;
             user.referralCode = user.referralCode || myReferral;
             if (referrerUser?._id) user.referredBy = referrerUser._id;

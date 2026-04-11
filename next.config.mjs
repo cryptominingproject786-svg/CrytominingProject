@@ -66,7 +66,6 @@ const nextConfig = {
     // streams dynamic parts (user data, balance) in afterwards.
     // Combines the speed of SSG with the freshness of SSR.
     // NOTE: `ppr` was merged into `cacheComponents` in Next.js 15.x.
-    cacheComponents: true,
   },
 
   // ── HTTP Response Headers ────────────────────────────────────────────────

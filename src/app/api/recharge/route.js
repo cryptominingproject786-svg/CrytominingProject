@@ -5,6 +5,7 @@ import Recharge from "../../models/Recharge";
 import User from "../../models/User";
 import mongoose from "mongoose";
 import { getToken } from "next-auth/jwt";
+export const dynamic = 'force-dynamic';
 
 export async function POST(req) {
     try {

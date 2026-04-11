@@ -1,4 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import Navbar from "./components/Navbar";
 import Providers from "../Redux/Provider";
@@ -25,8 +26,12 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Providers>
-          <Navbar />
-          <main>{children}</main>
+          <Suspense fallback={null}>
+            <Navbar />
+          </Suspense>
+          <main>
+            <Suspense fallback={null}>{children}</Suspense>
+          </main>
         </Providers>
       </body>
     </html>
