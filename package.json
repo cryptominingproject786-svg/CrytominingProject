@@ -9,28 +9,32 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@reduxjs/toolkit": "^2.11.2",
-    "bcrypt": "^6.0.0",
+    "@reduxjs/toolkit": "^2.5.0",
+    "bcryptjs": "^2.4.3",
     "critters": "^0.0.23",
     "ioredis": "^5.3.2",
-    "jsonwebtoken": "^9.0.3",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.577.0",
-    "mongoose": "^9.0.1",
-    "next": "^16.1.6",
-    "next-auth": "^4.24.13",
-    "nodemailer": "^7.0.12",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "react-redux": "^9.2.0",
+    "mongoose": "^8.4.0",
+    "next": "16.2.3",
+    "next-auth": "^5.0.0-beta.28",
+    "nodemailer": "^7.0.7",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-redux": "^9.1.2",
     "react-zoom-pan-pinch": "^3.7.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "25.0.8",
-    "@types/react": "19.2.8",
-    "babel-plugin-react-compiler": "1.0.0",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.8",
+    "@types/node": "^20.14.0",
+    "@types/react": "^19.0.0",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^16.2.3",
     "tailwindcss": "^4"
+  },
+  "overrides": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   }
 }

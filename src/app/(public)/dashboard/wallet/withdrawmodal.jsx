@@ -61,11 +61,10 @@ const NetworkButton = memo(
             <button
                 onClick={onClick}
                 aria-pressed={isSelected}
-                className={`flex-1 py-2 rounded-xl font-bold transition ${
-                    isSelected
+                className={`flex-1 py-2 rounded-xl font-bold transition ${isSelected
                         ? "bg-yellow-400 text-black"
                         : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                }`}
+                    }`}
                 type="button"
             >
                 {network}
@@ -204,7 +203,7 @@ function WithdrawModal({ onClose, balance = 0 }) {
             const res = await fetch("/api/withdraw", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ network, address, amount: Number(amount),   address: address.trim() }),
+                body: JSON.stringify({ network, amount: Number(amount), address: address.trim() }),
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || "Withdrawal request failed");

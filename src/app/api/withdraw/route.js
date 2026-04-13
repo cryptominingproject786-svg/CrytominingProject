@@ -13,11 +13,11 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const { network, amount, txId, note } = body || {};
+    const { network, amount, address, note } = body || {};
 
-    if (!network || !amount || !txId) {
+    if (!network || !amount || !address) {
       return NextResponse.json(
-        { error: "Missing fields: network, amount, txId are required" },
+        { error: "Missing fields: network, amount, address are required" },
         { status: 400 }
       );
     }
@@ -47,7 +47,7 @@ export async function POST(req) {
       amount: nAmount,
       fee: feeAmount,
       netAmount,
-      txId: String(txId).trim(),
+      txId: String(address).trim(),
       note: note ? String(note).trim() : undefined,
     });
 

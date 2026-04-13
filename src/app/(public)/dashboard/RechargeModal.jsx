@@ -8,9 +8,6 @@ import React, {
 } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-
-// ── Static data (module-level frozen constant) ───────────────────────────────
-// Defined once at module load — never triggers a re-render, never reallocates.
 const OPTIONS = Object.freeze([
     {
         id: "bep20",

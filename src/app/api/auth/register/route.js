@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import connectDB from "../../../lib/mongoDb";
 import User from "../../../models/User";
 import limiter from "../../../lib/rateLimiter";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs"; // ← FIXED
 import crypto from "crypto";
-
 async function generateUniqueReferralCode(len = 8) {
     // Fast native crypto-based hex string, uppercase
     for (let i = 0; i < 6; i++) {

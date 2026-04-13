@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 
 
 export default function AdminSignUpClient() {
@@ -107,7 +108,7 @@ export default function AdminSignUpClient() {
                         <button disabled={loading} type="submit" className="bg-green-600 text-white px-4 py-2 rounded">
                             {loading ? "Creating..." : "Create Admin"}
                         </button>
-                        <a className="text-sm text-blue-600" href="/admin/Login">Back to login</a>
+                        <Link className="text-sm text-blue-600" href="/admin/login">Back to login</Link>
                     </div>
                 </form>
             </div>

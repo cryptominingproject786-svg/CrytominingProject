@@ -51,12 +51,11 @@ const nextConfig = {
     optimizeCss: true,
 
     // Tree-shake large packages — only import what you actually use.
-    // Directly reduces the "Reduce unused JavaScript 303 KiB" Lighthouse flag.
-    // Add any large package your project imports here.
+    // `next-auth/react` can be sensitive to package-level import rewriting,
+    // so keep it outside of this optimization list to avoid duplicate React
+    // renderer / context-provider issues.
     optimizePackageImports: [
       "react-zoom-pan-pinch",
-      "next-auth",
-      "next-auth/react",
       "lucide-react",
       "date-fns",
       "lodash",

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function AdminLoginClient() {
     const [email, setEmail] = useState("");
@@ -69,7 +70,9 @@ export default function AdminLoginClient() {
                         <button disabled={loading} type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">
                             {loading ? "Signing in..." : "Sign in"}
                         </button>
-                        <a className="text-sm text-blue-600" href="/admin/SignUp">Create admin</a>
+                        <Link className="text-sm text-blue-600" href="/admin/signup">
+                            Create admin
+                        </Link>
                     </div>
                 </form>
             </div>
