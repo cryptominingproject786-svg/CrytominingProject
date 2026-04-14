@@ -16,6 +16,11 @@ const CYCLE_MONTHLY_ROR = {
     50: 1.20,
 };
 
+function parseReturnRate(returnRate) {
+    if (!returnRate) return NaN;
+    return parseFloat(String(returnRate).replace(/%/g, ""));
+}
+
 function parseCycleDays(cycleStr) {
     if (!cycleStr) return 1;
     if (cycleStr.toLowerCase().includes("daily")) return 1;
@@ -114,8 +119,19 @@ export default function InvestModal() {
         return parseCycleDays(selectedMiner.cycle);
     }, [selectedMiner]);
 
-    const monthlyRoR = useMemo(() => getMonthlyRoR(cycleDays), [cycleDays]);
-    const dailyRate = useMemo(() => monthlyRoR / 30, [monthlyRoR]);
+    const selectedMinerDailyRate = useMemo(() => {
+        const parsed = parseReturnRate(selectedMiner?.returnRate);
+        if (!isNaN(parsed)) return parsed / 100;
+        return getMonthlyRoR(cycleDays) / 30;
+    }, [selectedMiner, cycleDays]);
+
+    const monthlyRoR = useMemo(() => {
+        const parsed = parseReturnRate(selectedMiner?.returnRate);
+        if (!isNaN(parsed)) return (parsed / 100) * 30;
+        return getMonthlyRoR(cycleDays);
+    }, [selectedMiner, cycleDays]);
+
+    const dailyRate = selectedMinerDailyRate;
     const dailyProfit = useMemo(() => {
         const p = parseFloat(amount);
         if (!p || isNaN(p)) return 0;

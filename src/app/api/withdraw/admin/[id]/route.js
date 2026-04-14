@@ -5,59 +5,85 @@ import connectDB from "../../../../lib/mongoDb";
 import Withdraw from "../../../../models/Withdraw";
 import User from "../../../../models/User";
 
+// ─── Shared helpers ───────────────────────────────────────────────────────────
+async function bootstrap(req) {
+  const [token] = await Promise.all([
+    getToken({ req, secret: process.env.NEXTAUTH_SECRET }),
+    connectDB(),
+  ]);
+  return token;
+}
+
+function isAdminAuthed(token) {
+  return token?.role === "admin";
+}
+
+function calcFee(amount, rate) {
+  return Math.round(amount * rate * 100) / 100;
+}
+
+function calcNetAmount(amount, fee) {
+  return Math.round((amount - fee) * 100) / 100;
+}
+
+function serializeInvoice(adminInvoice) {
+  if (!adminInvoice?.data || !adminInvoice?.contentType) return null;
+  const buf = Buffer.isBuffer(adminInvoice.data)
+    ? adminInvoice.data
+    : Buffer.from(adminInvoice.data);
+  return `data:${adminInvoice.contentType};base64,${buf.toString("base64")}`;
+}
+
+function serializeUser(user) {
+  if (!user) return null;
+  return {
+    _id: String(user._id),
+    username: user.username,
+    email: user.email,
+    phone: user.phone || null,
+    balance: user.balance ?? 0,
+    investedAmount: user.investedAmount ?? 0,
+    referralCode: user.referralCode,
+  };
+}
+
 // ─── GET /api/withdraw/admin/[id] ────────────────────────────────────────────
 export async function GET(req, { params }) {
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    if (!token || token.role !== "admin") {
+    const [token, { id }] = await Promise.all([
+      bootstrap(req),   // token + connectDB in parallel
+      params,
+    ]);
+
+    if (!isAdminAuthed(token))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
-    const { id } = await params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!mongoose.Types.ObjectId.isValid(id))
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-    }
-
-    await connectDB();
 
     const w = await Withdraw.findById(id)
       .populate("user", "username email phone balance investedAmount referralCode")
       .lean();
 
-    if (!w) {
+    if (!w)
       return NextResponse.json({ error: "Withdrawal not found" }, { status: 404 });
-    }
 
-    let adminInvoice = null;
-    if (w.adminInvoice?.data && w.adminInvoice?.contentType) {
-      adminInvoice = `data:${w.adminInvoice.contentType};base64,${Buffer.from(
-        w.adminInvoice.data
-      ).toString("base64")}`;
-    }
+    const fee = w.fee ?? calcFee(w.amount, 0.02);
+    const netAmount = w.netAmount ?? calcNetAmount(w.amount, fee);
 
     return NextResponse.json({
       data: {
         _id: String(w._id),
-        user: w.user
-          ? {
-            _id: String(w.user._id),
-            username: w.user.username,
-            email: w.user.email,
-            phone: w.user.phone || null,
-            balance: w.user.balance ?? 0,
-            investedAmount: w.user.investedAmount ?? 0,
-            referralCode: w.user.referralCode,
-          }
-          : null,
+        user: serializeUser(w.user),
         network: w.network,
         txId: w.txId,
         amount: w.amount,
-        fee: w.fee ?? Math.round(w.amount * 0.05 * 100) / 100,
-        netAmount: w.netAmount ?? Math.round((w.amount - (w.fee ?? Math.round(w.amount * 0.05 * 100) / 100)) * 100) / 100,
+        fee,
+        netAmount,
         status: w.status,
         requestedAt: w.requestedAt,
         processedAt: w.processedAt,
-        adminInvoice,
+        adminInvoice: serializeInvoice(w.adminInvoice),
         note: w.note,
         createdAt: w.createdAt,
       },
@@ -68,61 +94,59 @@ export async function GET(req, { params }) {
   }
 }
 
-// ─── Re-export PATCH from the existing route file ────────────────────────────
-// The PATCH handler you already wrote lives in this same file path.
-// Paste your existing PATCH logic below (or keep it in a separate file and
-// import it). Shown here for completeness:
-
+// ─── PATCH /api/withdraw/admin/[id] ──────────────────────────────────────────
 export async function PATCH(req, { params }) {
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    if (!token || token.role !== "admin") {
+    // connectDB + token + params + body — all in parallel
+    const [token, { id }, body] = await Promise.all([
+      bootstrap(req),
+      params,
+      req.json().catch(() => null),
+    ]);
+
+    if (!isAdminAuthed(token))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
-    const { id } = await params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!mongoose.Types.ObjectId.isValid(id))
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-    }
 
-    const body = await req.json();
     const { status, adminInvoice } = body || {};
 
-    if (!["pending", "approved", "rejected"].includes(status)) {
+    if (!["pending", "approved", "rejected"].includes(status))
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
-    }
-
-    await connectDB();
 
     const withdraw = await Withdraw.findById(id);
-    if (!withdraw) {
-      return NextResponse.json({ error: "Withdrawal not found" }, { status: 404 });
-    }
 
-    if (withdraw.status === "approved" && status !== "approved") {
+    if (!withdraw)
+      return NextResponse.json({ error: "Withdrawal not found" }, { status: 404 });
+
+    if (withdraw.status === "approved" && status !== "approved")
       return NextResponse.json(
         { error: "Cannot change status from approved" },
         { status: 400 }
       );
-    }
 
-    if (withdraw.status === status) {
+    // No-op: status unchanged
+    if (withdraw.status === status)
       return NextResponse.json({ data: withdraw }, { status: 200 });
-    }
 
+    // ── Atomic balance deduction (fixes race condition in original) ───────────
     if (status === "approved") {
-      const user = await User.findById(withdraw.user);
-      if (!user) {
-        return NextResponse.json({ error: "User not found" }, { status: 404 });
-      }
-      if (user.balance < withdraw.amount) {
+      const updatedUser = await User.findOneAndUpdate(
+        { _id: withdraw.user, balance: { $gte: withdraw.amount } },
+        { $inc: { balance: -withdraw.amount } },
+        { new: true, select: "username email phone balance investedAmount" }
+      );
+
+      if (!updatedUser) {
+        // Either user missing or insufficient balance — check which
+        const exists = await User.exists({ _id: withdraw.user });
         return NextResponse.json(
-          { error: "User balance is lower than requested amount" },
+          { error: exists ? "User balance is lower than requested amount" : "User not found" },
           { status: 400 }
         );
       }
-      user.balance -= withdraw.amount;
-      await user.save();
+
       withdraw.processedAt = new Date();
       withdraw.processedBy = token.id;
     }
@@ -132,61 +156,43 @@ export async function PATCH(req, { params }) {
       withdraw.processedBy = token.id;
     }
 
-    // Store admin invoice image
+    // ── Store admin invoice ───────────────────────────────────────────────────
     if (adminInvoice?.data && adminInvoice?.contentType) {
       const base64 = adminInvoice.data;
-      const match =
-        typeof base64 === "string" && base64.match(/^data:(.+);base64,(.+)$/);
-      if (match) {
-        withdraw.adminInvoice.data = Buffer.from(match[2], "base64");
-        withdraw.adminInvoice.contentType = match[1];
-      } else {
-        withdraw.adminInvoice.data = Buffer.from(base64, "base64");
-        withdraw.adminInvoice.contentType = adminInvoice.contentType || "image/png";
-      }
+      const match = typeof base64 === "string" && base64.match(/^data:(.+);base64,(.+)$/);
+
+      withdraw.adminInvoice.data = Buffer.from(match ? match[2] : base64, "base64");
+      withdraw.adminInvoice.contentType = match ? match[1] : (adminInvoice.contentType || "image/png");
       withdraw.adminInvoice.filename = adminInvoice.filename || "admin-invoice.png";
       withdraw.adminInvoice.size = withdraw.adminInvoice.data.length;
-      // Bug 3 fixed: adminInvoice is a plain nested object (not a SubSchema),
-      // so Mongoose won't detect mutations to its fields automatically.
-      // markModified forces Mongoose to include it in the $set on save().
       withdraw.markModified("adminInvoice");
     }
 
     withdraw.status = status;
-    await withdraw.save();
 
-    // Re-populate user for the response — same fields as GET so client state stays consistent
-    await withdraw.populate("user", "username email phone balance investedAmount");
+    // ── Save withdraw + re-fetch updated user in parallel ─────────────────────
+    const [savedWithdraw] = await Promise.all([
+      withdraw.save().then((w) =>
+        w.populate("user", "username email phone balance investedAmount")
+      ),
+    ]);
 
-    let adminInvoiceUrl = null;
-    if (withdraw.adminInvoice?.data && withdraw.adminInvoice?.contentType) {
-      adminInvoiceUrl = `data:${withdraw.adminInvoice.contentType};base64,${Buffer.from(
-        withdraw.adminInvoice.data
-      ).toString("base64")}`;
-    }
+    const fee = savedWithdraw.fee ?? calcFee(savedWithdraw.amount, 0.02);
+    const netAmount = savedWithdraw.netAmount ?? calcNetAmount(savedWithdraw.amount, fee);
 
     return NextResponse.json({
       data: {
-        _id: String(withdraw._id),
-        user: withdraw.user
-          ? {
-            _id: String(withdraw.user._id),
-            username: withdraw.user.username,
-            email: withdraw.user.email,
-            phone: withdraw.user.phone || null,
-            balance: withdraw.user.balance ?? 0,
-            investedAmount: withdraw.user.investedAmount ?? 0,
-          }
-          : null,
-        network: withdraw.network,
-        txId: withdraw.txId,
-        amount: withdraw.amount,
-        fee: withdraw.fee ?? Math.round(withdraw.amount * 0.05 * 100) / 100,
-        netAmount: withdraw.netAmount ?? Math.round((withdraw.amount - (withdraw.fee ?? Math.round(withdraw.amount * 0.05 * 100) / 100)) * 100) / 100,
-        status: withdraw.status,
-        requestedAt: withdraw.requestedAt,
-        processedAt: withdraw.processedAt,
-        adminInvoice: adminInvoiceUrl,
+        _id: String(savedWithdraw._id),
+        user: serializeUser(savedWithdraw.user),
+        network: savedWithdraw.network,
+        txId: savedWithdraw.txId,
+        amount: savedWithdraw.amount,
+        fee,
+        netAmount,
+        status: savedWithdraw.status,
+        requestedAt: savedWithdraw.requestedAt,
+        processedAt: savedWithdraw.processedAt,
+        adminInvoice: serializeInvoice(savedWithdraw.adminInvoice),
       },
     });
   } catch (err) {

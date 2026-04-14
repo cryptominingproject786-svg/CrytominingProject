@@ -38,7 +38,7 @@ export async function POST(req) {
       return NextResponse.json({ error: "Insufficient balance" }, { status: 400 });
     }
 
-    const feeAmount = Math.round(nAmount * 0.05 * 100) / 100;
+    const feeAmount = Math.round(nAmount * 0.02 * 100) / 100;
     const netAmount = Math.round((nAmount - feeAmount) * 100) / 100;
 
     const withdraw = await Withdraw.create({

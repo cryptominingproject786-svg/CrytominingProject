@@ -1,28 +1,21 @@
 "use client";
 
-import React from "react";
-
-/**
- * Floating WhatsApp Support Button
- *
- * Best Practices Applied:
- * - Configurable props
- * - Environment variable support
- * - Accessible
- * - Encoded message handling
- * - Performance optimization with React.memo
- */
+import React, { useEffect, useState } from "react";
 
 function WhatsAppButton({
-    phoneNumber = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || "03464197241",
-    message = "Hello! I need support with my account.",
+    phoneNumber,
+    message,
     className = "",
 }) {
+    const [mounted, setMounted] = useState(false);
 
-    // Encode message safely for URL
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) return null;
+
     const encodedMessage = encodeURIComponent(message);
-
-    // Generate WhatsApp chat URL
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
 
     return (
@@ -32,27 +25,13 @@ function WhatsAppButton({
             rel="noopener noreferrer"
             aria-label="Chat with support on WhatsApp"
             title="Chat with us on WhatsApp"
-            className={`
-        fixed bottom-6 right-6 z-[9999]
-        inline-flex items-center justify-center
-        w-14 h-14 sm:w-16 sm:h-16
-        rounded-full bg-green-500
-        shadow-2xl
-        hover:bg-green-400
-        hover:scale-110
-        transform transition-all duration-300
-        relative
-        focus:outline-none focus:ring-2 focus:ring-green-300
-        ${className}
-      `}
+            className={`fixed bottom-6 right-6 z-[9999] inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-green-500 shadow-2xl hover:bg-green-400 hover:scale-110 transform transition-all duration-300 relative focus:outline-none focus:ring-2 focus:ring-green-300 ${className}`}
         >
-            {/* Ping animation */}
             <span
                 aria-hidden="true"
                 className="absolute inset-0 rounded-full bg-green-400 opacity-40 animate-ping"
             />
 
-            {/* WhatsApp Icon */}
             <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 32 32"

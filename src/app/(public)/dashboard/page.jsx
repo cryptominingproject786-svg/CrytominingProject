@@ -7,7 +7,6 @@ import React, {
     lazy,
     Suspense,
 } from "react";
-import WhatsAppButton from "./WhatsAppButton";
 import Image from "next/image";
 
 // ── Lazy-load below-the-fold sections ───────────────────────────────────────
@@ -40,12 +39,29 @@ const SectionSkeleton = memo(function SectionSkeleton({ height = "h-40" }) {
     );
 });
 
+// ── ClientOnly ────────────────────────────────────────────────────────────────
+// Renders children only after mount. Server + first client render both return
+// `fallback`, so the HTML is identical and React hydrates without a mismatch.
+// After hydration, the real children are swapped in via a normal state update.
+function ClientOnly({ children, fallback = null }) {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    return mounted ? children : fallback;
+}
+
 // ── ImageCarousel ─────────────────────────────────────────────────────────────
-// FIX: removed the `visible` state entirely.
-// The old pattern (visible=false on server, true on client) caused a guaranteed
-// hydration mismatch — server renders nothing, client renders an <Image>.
-// Instead we render the first image immediately on both server and client,
-// then useEffect handles the interval safely after hydration completes.
+// The <section> shell is rendered on both server and client (stable layout).
+// The <img> inside is gated behind ClientOnly so the server never emits it —
+// no hydration diff possible for the image element.
+//
+// We use a plain <img> instead of next/image <Image fill> because Next.js
+// Image emits extra SSR markup (<ImagePreload>, link rel=preload) that can
+// appear/disappear between server and client renders in Turbopack builds,
+// which is exactly what the error diff was showing.
 const ImageCarousel = memo(function ImageCarousel() {
     const [index, setIndex] = useState(0);
 
@@ -63,17 +79,33 @@ const ImageCarousel = memo(function ImageCarousel() {
             aria-roledescription="carousel"
             className="relative w-full rounded-2xl overflow-hidden shadow-lg h-[220px] sm:h-[300px] md:h-[380px] lg:h-[450px] xl:h-[520px]"
         >
-            <Image
-                src={CAROUSEL_IMAGES[index].src}
-                alt={CAROUSEL_IMAGES[index].alt}
-                fill
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1200px"
-                className="object-cover transition-opacity duration-1000"
-                priority={index === 0}
-                loading={index === 0 ? undefined : "lazy"}
-                placeholder="blur"
-                blurDataURL={BLUR_PLACEHOLDER}
-            />
+            <ClientOnly
+                fallback={
+                    <div
+                        aria-hidden="true"
+                        style={{
+                            position: "absolute",
+                            inset: 0,
+                            background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
+                        }}
+                    />
+                }
+            >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                    key={index}
+                    src={CAROUSEL_IMAGES[index].src}
+                    alt={CAROUSEL_IMAGES[index].alt}
+                    decoding="async"
+                    style={{
+                        position: "absolute",
+                        inset: 0,
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                    }}
+                />
+            </ClientOnly>
         </section>
     );
 });
@@ -86,21 +118,37 @@ function UserHome() {
                 aria-label="Crypto Mining Platform Home"
                 itemScope
                 itemType="https://schema.org/WebPage"
-                // overflow-hidden removed — it creates a stacking context that
-                // traps position:fixed children (WhatsAppButton) in Chrome/Safari.
                 className="relative min-h-screen text-white px-4 py-4 sm:px-6 lg:px-10"
+                // Browser extensions (MetaMask, ad-blockers) inject extra classes
+                // like `overflow-hidden` before React loads, causing a className
+                // mismatch on this node. suppressHydrationWarning silences it for
+                // this single element without masking errors in child components.
+                suppressHydrationWarning
             >
-                <Image
+                {/*
+                  * Plain <img> for the banner background instead of next/image <Image>.
+                  * next/image with `fill` + `priority` emits a <link rel="preload">
+                  * and an <ImagePreload> component into the SSR stream. In Turbopack
+                  * builds these can be present on the server but absent on the client
+                  * (or vice-versa), producing the "-  <img>" diff seen in the error.
+                  * A plain <img> has no such side-effects and is always stable.
+                */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                     src="/banner.png"
                     alt=""
                     aria-hidden="true"
-                    fill
-                    sizes="100vw"
-                    quality={75}
-                    priority
-                    placeholder="blur"
-                    blurDataURL={BLUR_PLACEHOLDER}
-                    className="object-cover object-center -z-10"
+                    fetchPriority="high"
+                    decoding="async"
+                    style={{
+                        position: "absolute",
+                        inset: 0,
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        objectPosition: "center",
+                        zIndex: -1,
+                    }}
                 />
 
                 <div aria-hidden="true" className="absolute inset-0 bg-black/50 -z-10" />
@@ -160,12 +208,6 @@ function UserHome() {
             <Suspense fallback={<SectionSkeleton height="h-48" />}>
                 <MembersList />
             </Suspense>
-
-            {/* Rendered directly — no Suspense, no lazy. Static component. */}
-            <WhatsAppButton
-                phoneNumber="+923464197241"
-                message="Hello, I need help with billing."
-            />
         </>
     );
 }

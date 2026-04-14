@@ -8,7 +8,13 @@ export async function GET(req) {
 
     await connectDB();
 
-    const token = await getToken({ req });
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    if (!token?.id) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+        });
+    }
 
     const investments = await Investment.find({
         user: token.id,

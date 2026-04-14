@@ -12,10 +12,10 @@ const MINERS = Object.freeze([
     {
         name: "Mining Machine S15",
         image: "/ANG.png",
-        returnRate: "2.333%",
+        returnRate: "2%",
         cycle: "Daily",
         progress: 82.75,
-        price: "10.00 ~ 100.00 USDT",
+        price: "50.00 ~ 100.00 USDT",
     },
     {
         name: "Mining RIG-819",
