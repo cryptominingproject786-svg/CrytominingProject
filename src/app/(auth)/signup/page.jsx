@@ -63,12 +63,21 @@ export default function SignupPage() {
                     return;
                 }
 
-                await signIn("credentials", {
-                    email: form.email,
+                const signInResult = await signIn("credentials", {
+                    email: form.email.trim().toLowerCase(),
                     password: form.password,
-                    redirect: true,
-                    callbackUrl: "/dashboard",
+                    redirect: false,
                 });
+
+                if (!signInResult || !signInResult.ok) {
+                    setError(
+                        signInResult?.error ||
+                            "Registration succeeded but login failed. Please sign in manually."
+                    );
+                    return;
+                }
+
+                router.replace("/dashboard");
             } catch (err) {
                 setError("Network error. Please try again.");
             }

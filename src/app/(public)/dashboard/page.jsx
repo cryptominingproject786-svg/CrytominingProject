@@ -7,6 +7,8 @@ import React, {
     lazy,
     Suspense,
 } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Image from "next/image";
 
 // ── Lazy-load below-the-fold sections ───────────────────────────────────────
@@ -47,7 +49,9 @@ function ClientOnly({ children, fallback = null }) {
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
+        const callback = () => setMounted(true);
+        const frame = window.requestAnimationFrame(callback);
+        return () => window.cancelAnimationFrame(frame);
     }, []);
 
     return mounted ? children : fallback;
@@ -112,6 +116,22 @@ const ImageCarousel = memo(function ImageCarousel() {
 
 // ── UserHome ──────────────────────────────────────────────────────────────────
 function UserHome() {
+    const router = useRouter();
+    const { status } = useSession({
+        required: true,
+        onUnauthenticated() {
+            router.replace("/join");
+        },
+    });
+
+    if (status === "loading") {
+        return (
+            <div className="min-h-screen flex items-center justify-center text-white">
+                Loading dashboard…
+            </div>
+        );
+    }
+
     return (
         <>
             <main

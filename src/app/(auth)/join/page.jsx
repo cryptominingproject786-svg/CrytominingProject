@@ -45,7 +45,7 @@ export default function JoinPage() {
                 }
 
                 const res = await signIn("credentials", {
-                    email: form.email,
+                    email: form.email.trim().toLowerCase(),
                     password: form.password,
                     redirect: false,
                 });
@@ -55,20 +55,16 @@ export default function JoinPage() {
                     return;
                 }
 
-                if (res.error) {
+                if (!res.ok) {
                     setError(
                         res.error === "CredentialsSignin"
                             ? "Invalid email or password"
-                            : res.error
+                            : res.error || "Sign in failed. Please try again."
                     );
                     return;
                 }
 
-                // ✅ Wait for session to be ready
-                await fetch("/api/auth/session");
-
-                // ✅ Replace instead of push (better UX)
-                window.location.href = "/dashboard";
+                router.replace("/dashboard");
 
             } catch (err) {
                 console.error(err);
