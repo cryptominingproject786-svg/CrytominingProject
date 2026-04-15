@@ -208,7 +208,6 @@ function WithdrawModal({ onClose, balance = 0 }) {
         try {
             const res = await fetch("/api/withdraw", {
                 method: "POST",
-                credentials: "include",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ network, amount: Number(amount), address: address.trim() }),
             });

@@ -23,7 +23,7 @@ export default function Team() {
         let mounted = true;
         const fetchTeam = async () => {
             try {
-                const res = await fetch("/api/user/team", { credentials: "include" });
+                const res = await fetch("/api/user/team");
                 const json = await res.json();
                 if (!res.ok) throw new Error(json?.error || "Failed to load team data");
                 if (mounted) {

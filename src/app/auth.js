@@ -19,7 +19,10 @@ if (!process.env.AUTH_TRUST_HOST) {
     );
 }
 
-export const { GET, POST, auth } = NextAuth({
+export const {
+    handlers: { GET, POST },
+    auth,
+} = NextAuth({
     providers: [
         CredentialsProvider({
             name: "Credentials",
