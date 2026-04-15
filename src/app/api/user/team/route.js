@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req) {
     try {
-        const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+        const token = await getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET });
         if (!token?.id) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }

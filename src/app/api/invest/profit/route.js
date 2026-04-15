@@ -8,7 +8,7 @@ export async function GET(req) {
 
     await connectDB();
 
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const token = await getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET });
     if (!token?.id) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
             status: 401,

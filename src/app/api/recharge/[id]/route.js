@@ -15,7 +15,7 @@ export async function GET(req, { params }) {
         const recharge = await Recharge.findById(id).populate("user", "username email").lean();
         if (!recharge) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-        const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }).catch(() => null);
+        const token = await getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET }).catch(() => null);
 
         // Allow if admin or owner (by user id or by email fallback)
         if (token?.role !== "admin") {

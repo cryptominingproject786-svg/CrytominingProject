@@ -9,7 +9,7 @@ export async function POST(req) {
     try {
         await connectDB();
 
-        const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+        const token = await getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET });
         if (!token) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }

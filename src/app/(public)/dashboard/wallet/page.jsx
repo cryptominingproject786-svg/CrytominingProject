@@ -73,7 +73,7 @@ export default function WalletPage() {
 
         const fetchData = async () => {
             try {
-                const res = await fetch("/api/user/wallet");
+                const res = await fetch("/api/user/wallet", { credentials: "include" });
 
                 let json;
                 try {

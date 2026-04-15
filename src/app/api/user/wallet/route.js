@@ -23,7 +23,7 @@ const ERROR_MSGS = {
 // ─── Shared auth + db bootstrap ──────────────────────────────────────────────
 async function bootstrap(req) {
     const [token] = await Promise.all([
-        getToken({ req, secret: process.env.NEXTAUTH_SECRET }),
+        getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET }),
         connectDB(),           // connect while token is being verified
     ]);
     return token;

@@ -38,7 +38,7 @@ export async function POST(req) {
         let userId;
         let tokenEmail;
         try {
-            const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+            const token = await getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET });
             if (token) {
                 tokenEmail = token.email;
                 // Prefer finding the actual User document by token.sub (if it is an ObjectId)
@@ -193,7 +193,7 @@ export async function GET(req) {
     try {
         await connectDB();
 
-        const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+        const token = await getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET });
         if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         // Resolve the real user id: prefer _id match, otherwise try the email

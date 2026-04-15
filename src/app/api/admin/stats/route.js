@@ -11,7 +11,7 @@ export async function GET(req) {
     try {
         const token = await getToken({
             req,
-            secret: process.env.NEXTAUTH_SECRET,
+            secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET,
         });
 
         if (!token || token.role !== "admin") {
