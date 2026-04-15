@@ -319,8 +319,10 @@ export default function Navbar() {
 
                 const res = await fetch(endpoint, {
                     method: "GET",
-                    credentials: "include",
                     cache: "no-store",
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
                 });
 
                 if (canceled) return;
