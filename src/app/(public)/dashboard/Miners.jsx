@@ -3,7 +3,9 @@
 
 import React, { memo } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import { useDispatch } from "react-redux";
+import { openPurchaseModal } from "../../../Redux/Slices/MiningSlice";
+import InvestModal from "../mining/InvestModal";
 
 // ── Static data (module-level frozen constant) ───────────────────────────────
 // Object.freeze prevents accidental mutation and signals immutability to V8.
@@ -15,47 +17,47 @@ const MINERS = Object.freeze([
         returnRate: "2%",
         cycle: "Daily",
         progress: 82.75,
-        price: "50.00 ~ 100.00 USDT",
+        price: "10 USDT",
     },
     {
         name: "Mining RIG-819",
         image: "/Rig.png",
-        returnRate: "2.500%",
-        cycle: "7 Days",
+        returnRate: "2%",
+        cycle: "1 Days",
         progress: 56.30,
-        price: "100.00 ~ 1000.00 USDT",
+        price: "10 USDT",
     },
     {
         name: "Minerbase Machine L11",
         image: "/ANG.png",
-        returnRate: "2.700%",
-        cycle: "15 Days",
+        returnRate: "2%",
+        cycle: "1 Days",
         progress: 40.84,
-        price: "500.00 ~ 1000.00 USDT",
+        price: "10 USDT",
     },
     {
         name: "Mining Machine D9",
         image: "/D9.png",
-        returnRate: "2.850%",
-        cycle: "21 Days",
+        returnRate: "2%",
+        cycle: "1 Days",
         progress: 44.30,
-        price: "1000.00 ~ 10,000.00 USDT",
+        price: "5 USDT",
     },
     {
         name: "Mining RIG S21",
         image: "/S21.png",
-        returnRate: "3.500%",
-        cycle: "28 Days",
+        returnRate: "2%",
+        cycle: "1 Days",
         progress: 38.41,
-        price: "2000.00 ~ 20000.00 USDT",
+        price: "5 USDT",
     },
     {
         name: "Full Mining Machine L9",
         image: "/L9.png",
-        returnRate: "4.00%",
-        cycle: "50 Days",
+        returnRate: "2%",
+        cycle: "1 Days",
         progress: 39.76,
-        price: "5000.00 ~ 50000.00 USDT",
+        price: "5 USDT",
     },
 ]);
 
@@ -64,6 +66,7 @@ const MINERS = Object.freeze([
 // MINERS is a frozen constant → props never change → this component renders
 // exactly ONCE per card and never again for the lifetime of the app.
 const MinerCard = memo(function MinerCard({ miner, priority }) {
+    const dispatch = useDispatch();
     const { name, image, returnRate, cycle, progress, price } = miner;
 
     return (
@@ -143,13 +146,14 @@ const MinerCard = memo(function MinerCard({ miner, priority }) {
                 FIX: <Link> rendered directly as the CTA — removes the invalid
                      <button> inside <Link> nesting (fails HTML5 + WCAG 4.1.1). */}
             <div className="mt-5 flex items-center gap-3">
-                <Link
-                    href="/mining"
+                <button
+                    type="button"
+                    onClick={() => dispatch(openPurchaseModal(miner))}
                     aria-label={`Buy ${name}`}
-                    className="flex-1 block text-center py-2.5 rounded-xl bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition shadow-lg"
+                    className="flex-1 text-center py-2.5 rounded-xl bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition shadow-lg"
                 >
                     Buy Now
-                </Link>
+                </button>
 
                 <button
                     aria-label={`Settings for ${name}`}
@@ -159,7 +163,6 @@ const MinerCard = memo(function MinerCard({ miner, priority }) {
                     <span aria-hidden="true">⚙️</span>
                 </button>
             </div>
-
             {/* Decorative glow — aria-hidden so crawlers skip it */}
             <div
                 aria-hidden="true"
@@ -217,6 +220,7 @@ function Miners() {
                 </div>
 
             </div>
+            <InvestModal />
         </section>
     );
 }

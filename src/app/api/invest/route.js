@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import connectDB from "../../lib/mongoDb";
 import User from "../../models/User";
 import Investment from "../../models/Investment";
+import ReferralBonus from "../../models/ReferralBonus";
 import { getToken } from "next-auth/jwt";
 import mongoose from "mongoose";
 export const dynamic = 'force-dynamic';
@@ -37,8 +38,8 @@ export async function POST(req) {
             );
         }
 
-        // Minimum investment is $10
-        const MIN_INVESTMENT = 10;
+        // Minimum investment is $5
+        const MIN_INVESTMENT = 5;
         if (numAmount < MIN_INVESTMENT) {
             return NextResponse.json(
                 { error: `Minimum investment is $${MIN_INVESTMENT}` },
@@ -47,7 +48,7 @@ export async function POST(req) {
         }
 
         // Find the user
-        const user = await User.findById(token.id).select("balance username email");
+        const user = await User.findById(token.id).select("balance username email referredBy");
         if (!user) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
@@ -60,10 +61,8 @@ export async function POST(req) {
             );
         }
 
-        // Deduct amount from user balance with proper precision (round to 2 decimals)
-        user.balance = Math.round((user.balance - numAmount) * 100) / 100;
-        user.investedAmount = Math.round(((user.investedAmount || 0) + numAmount) * 100) / 100;
-        await user.save();
+        const priorInvestmentCount = await Investment.countDocuments({ user: user._id });
+        const isFirstInvestment = priorInvestmentCount === 0;
 
         // Calculate maturity date based on investment cycle (in days)
         const startDate = new Date();
@@ -83,11 +82,57 @@ export async function POST(req) {
             maturityDate,
         });
 
-        // Add investment reference to user's investments array
-        await User.updateOne(
-            { _id: token.id },
-            { $addToSet: { investments: investment._id } }
-        );
+        const userUpdate = {
+            $inc: {
+                balance: -numAmount,
+                investedAmount: numAmount,
+            },
+            $addToSet: {
+                investments: investment._id,
+            },
+        };
+
+        if (isFirstInvestment) {
+            userUpdate.$set = { firstInvestmentAt: startDate };
+        }
+
+        await User.updateOne({ _id: token.id }, userUpdate);
+
+        if (isFirstInvestment && user.referredBy) {
+            const parentId = user.referredBy;
+            const bonusAmount = 0.25;
+
+            const bonus = await ReferralBonus.findOneAndUpdate(
+                {
+                    parent: parentId,
+                    referredUser: user._id,
+                    type: "firstReferralBonus",
+                },
+                {
+                    $setOnInsert: {
+                        parent: parentId,
+                        referredUser: user._id,
+                        investment: investment._id,
+                        amount: bonusAmount,
+                        description: "First referral investment bonus",
+                        awardedAt: new Date(),
+                        type: "firstReferralBonus",
+                    },
+                },
+                {
+                    upsert: true,
+                    new: false,
+                    setDefaultsOnInsert: true,
+                }
+            );
+
+            if (!bonus) {
+                await User.updateOne(
+                    { _id: parentId },
+                    { $inc: { balance: bonusAmount, teamEarnings: bonusAmount } }
+                );
+            }
+        }
 
         console.info("/api/invest created", {
             investmentId: investment._id.toString(),

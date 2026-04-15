@@ -57,6 +57,11 @@ const UserSchema = new mongoose.Schema(
             default: 0,
         },
 
+        teamEarnings: {
+            type: Number,
+            default: 0,
+        },
+
         dailyProfit: {
             type: Number,
             default: 0,
@@ -90,6 +95,9 @@ const UserSchema = new mongoose.Schema(
         referredBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
+        },
+        firstInvestmentAt: {
+            type: Date,
         },
         referralCount: {
             type: Number,

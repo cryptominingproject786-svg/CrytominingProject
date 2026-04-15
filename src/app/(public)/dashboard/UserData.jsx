@@ -254,6 +254,7 @@ function UserData() {
                 icon: "👥",
                 label: "Invite Friends",
                 color: "bg-gradient-to-tr from-yellow-400 to-yellow-500",
+                onClick: () => router.push("/dashboard/Team"),
             },
             {
                 icon: "⚡",

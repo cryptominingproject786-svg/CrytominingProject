@@ -21,6 +21,20 @@ function parseReturnRate(returnRate) {
     return parseFloat(String(returnRate).replace(/%/g, ""));
 }
 
+function parsePriceRange(priceStr) {
+    if (!priceStr) return [0, 0];
+    const normalized = String(priceStr).replace(/USDT/gi, "").replace(/,/g, "").trim();
+    const parts = normalized.split("~").map((part) => part.trim()).filter(Boolean);
+    if (parts.length === 0) return [0, 0];
+    if (parts.length === 1) {
+        const value = parseFloat(parts[0]);
+        return [isNaN(value) ? 0 : value, isNaN(value) ? 0 : value];
+    }
+    const min = parseFloat(parts[0]);
+    const max = parseFloat(parts[1]);
+    return [isNaN(min) ? 0 : min, isNaN(max) ? (isNaN(min) ? 0 : min) : max];
+}
+
 function parseCycleDays(cycleStr) {
     if (!cycleStr) return 1;
     if (cycleStr.toLowerCase().includes("daily")) return 1;
@@ -99,19 +113,11 @@ export default function InvestModal() {
 
     }, [isModalOpen]);
 
-    const minAmount = useMemo(() => {
-        if (!selectedMiner) return 0;
-        return parseFloat(
-            selectedMiner.price.replace(/USDT/gi, "").replace(/,/g, "").split("~")[0].trim()
-        );
+    const [minAmount, maxAmount] = useMemo(() => {
+        if (!selectedMiner) return [0, 0];
+        return parsePriceRange(selectedMiner.price);
     }, [selectedMiner]);
 
-    const maxAmount = useMemo(() => {
-        if (!selectedMiner) return 0;
-        return parseFloat(
-            selectedMiner.price.replace(/USDT/gi, "").replace(/,/g, "").split("~")[1].trim()
-        );
-    }, [selectedMiner]);
     const roundMoney = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
     const cycleDays = useMemo(() => {

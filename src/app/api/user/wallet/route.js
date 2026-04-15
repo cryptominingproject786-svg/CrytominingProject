@@ -134,7 +134,7 @@ export async function GET(req) {
         const [user, withdrawRequests, totalWithdrawalsResult, activeInvestments] =
             await Promise.all([
                 User.findById(token.id)
-                    .select("balance investedAmount totalEarnings dailyProfit referralCode referralCount")
+                    .select("balance investedAmount totalEarnings teamEarnings dailyProfit referralCode referralCount")
                     .lean(),
 
                 Withdraw.find({ user: token.id })
@@ -177,6 +177,11 @@ export async function GET(req) {
             Math.round((computedLockedProfit || user.dailyProfit || 0) * 100) / 100
         );
 
+        const qualifiedReferralCount = await User.countDocuments({
+            referredBy: token.id,
+            firstInvestmentAt: { $exists: true },
+        });
+
         return NextResponse.json({
             data: {
                 balance: user.balance ?? 0,
@@ -184,7 +189,8 @@ export async function GET(req) {
                 investedAmount: user.investedAmount ?? 0,
                 referralCode: user.referralCode || "—",
                 teamMembersCount: user.referralCount ?? 0,
-                teamEarnings: user.totalEarnings ?? 0,
+                qualifiedReferralsCount: qualifiedReferralCount,
+                teamEarnings: user.teamEarnings ?? 0,
                 totalWithdrawals: totalWithdrawalsResult[0]?.total ?? 0,
                 referralCount: user.referralCount ?? 0,
                 withdrawRequests: withdrawRequests.map((w) => ({
