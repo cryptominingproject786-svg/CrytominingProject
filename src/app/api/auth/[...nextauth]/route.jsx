@@ -4,9 +4,6 @@ import bcrypt from "bcryptjs";
 import connectDB from "../../../lib/mongoDb";
 import User from "../../../models/User";
 import limiter from "../../../lib/rateLimiter";
-import { NEXTAUTH_SECRET, ensureNextAuthSecret } from "../../../lib/authConfig";
-
-ensureNextAuthSecret();
 
 const { handlers } = NextAuth({
     providers: [
@@ -92,9 +89,7 @@ const { handlers } = NextAuth({
         },
     },
 
-    // No static NEXTAUTH_URL here. NextAuth will infer the host from the incoming request,
-    // so authentication works across domains without a hardcoded URL value.
-    secret: NEXTAUTH_SECRET,
+    secret: process.env.NEXTAUTH_SECRET,
 
     pages: {
         signIn: "/join",

@@ -48,6 +48,7 @@ export default function JoinPage() {
                     email: form.email.trim().toLowerCase(),
                     password: form.password,
                     redirect: false,
+                    callbackUrl: "/dashboard",
                 });
 
                 if (!res) {
@@ -64,7 +65,10 @@ export default function JoinPage() {
                     return;
                 }
 
-                router.replace("/dashboard");
+                // Refresh session state before navigating to the dashboard.
+                await fetch("/api/auth/session", { cache: "no-store" });
+
+                router.replace(res.url || "/dashboard");
 
             } catch (err) {
                 console.error(err);

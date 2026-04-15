@@ -67,6 +67,7 @@ export default function SignupPage() {
                     email: form.email.trim().toLowerCase(),
                     password: form.password,
                     redirect: false,
+                    callbackUrl: "/dashboard",
                 });
 
                 if (!signInResult || !signInResult.ok) {
@@ -77,7 +78,9 @@ export default function SignupPage() {
                     return;
                 }
 
-                router.replace("/dashboard");
+                await fetch("/api/auth/session", { cache: "no-store" });
+
+                router.replace(signInResult.url || "/dashboard");
             } catch (err) {
                 setError("Network error. Please try again.");
             }
