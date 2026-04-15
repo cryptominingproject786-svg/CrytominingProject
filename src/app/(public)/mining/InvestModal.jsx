@@ -76,7 +76,11 @@ export default function InvestModal() {
 
         const fetchBalance = async () => {
             try {
-                const res = await fetch("/api/user/me");
+                const res = await fetch("/api/user/me", {
+                    method: "GET",
+                    credentials: "include",
+                    cache: "no-store",
+                });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const json = await res.json();
                 // ✅ Use the real wallet balance — this is what gets deducted on investment
@@ -186,6 +190,7 @@ export default function InvestModal() {
 
             const res = await fetch("/api/invest", {
                 method: "POST",
+                credentials: "include",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     minerName: selectedMiner.name,

@@ -1,12 +1,12 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
 import Navbar from "./components/Navbar";
 import WhatsAppButton from "./components/WhatsAppButton"; // ← import
 import Providers from "../Redux/Provider";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+const geistSans = Inter({ variable: "--font-geist-sans", subsets: ["latin"] });
+const geistMono = JetBrains_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata = {
   title: "Mining Platform",

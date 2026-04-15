@@ -1,37 +1,28 @@
-"use server";
-
+// ❌ Remove "use server" — NEVER use this on route handlers
 import { NextResponse } from "next/server";
 import connectDB from "../../../lib/mongoDb";
 import User from "../../../models/User";
 import Investment from "../../../models/Investment";
-import { getToken } from "next-auth/jwt";
-// import { NEXTAUTH_SECRET } from "../../../lib/authConfig";
+import { getAuthToken, getAuthUserId } from "../../../lib/authToken";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req) {
     try {
-        const token = await getToken({
-            req,
-            secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET,
-        });
+        const token = await getAuthToken(req);
+        const userId = getAuthUserId(token);
 
-        if (!token?.id) {
+        if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         await connectDB();
 
-        const userId = token.id;
-
-        // 🔥 PARALLEL FETCH (faster)
         const [user, investments] = await Promise.all([
             User.findById(userId)
                 .select("username email balance referralCode referralCount")
                 .lean(),
-
-            Investment.find({
-                user: userId,
-                status: "active",
-            })
+            Investment.find({ user: userId, status: "active" })
                 .select("amount dailyProfit cycleDays claimedProfit lastProfitAt startDate maturityDate")
                 .lean(),
         ]);
@@ -48,26 +39,16 @@ export async function GET(req) {
 
         for (const inv of investments) {
             const maturityTime = new Date(inv.maturityDate).getTime();
-
             if (now >= maturityTime) continue;
 
             activeInvestedAmount += inv.amount;
 
-            const totalProfit =
-                inv.totalProfit || inv.dailyProfit * inv.cycleDays;
-
             const claimed = inv.claimedProfit || 0;
-
             const last = new Date(inv.lastProfitAt || inv.startDate).getTime();
             const secondsPassed = (now - last) / 1000;
+            const profit = secondsPassed * (inv.dailyProfit / DAY_SECONDS);
 
-            const profit =
-                secondsPassed * (inv.dailyProfit / DAY_SECONDS);
-
-            const updatedClaimed = claimed + profit;
-
-            // 🔥 Increasing profit (UI friendly)
-            totalLockedProfit += updatedClaimed;
+            totalLockedProfit += claimed + profit;
         }
 
         return NextResponse.json({

@@ -3,16 +3,17 @@ import connectDB from "../../lib/mongoDb";
 import User from "../../models/User";
 import Investment from "../../models/Investment";
 import ReferralBonus from "../../models/ReferralBonus";
-import { getToken } from "next-auth/jwt";
+import { getAuthToken, getAuthUserId } from "../../lib/authToken";
 import mongoose from "mongoose";
 export const dynamic = 'force-dynamic';
 
 
 export async function POST(req) {
     try {
-        const token = await getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET });
+        const token = await getAuthToken(req);
+        const userId = getAuthUserId(token);
 
-        if (!token || !token.id) {
+        if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -48,7 +49,7 @@ export async function POST(req) {
         }
 
         // Find the user
-        const user = await User.findById(token.id).select("balance username email referredBy");
+        const user = await User.findById(userId).select("balance username email referredBy");
         if (!user) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
@@ -70,7 +71,7 @@ export async function POST(req) {
 
         // Create investment record
         const investment = await Investment.create({
-            user: token.id,
+            user: userId,
             minerName,
             amount: numAmount,
             cycleDays: investmentCycle,  // Map to correct schema field name
@@ -96,7 +97,7 @@ export async function POST(req) {
             userUpdate.$set = { firstInvestmentAt: startDate };
         }
 
-        await User.updateOne({ _id: token.id }, userUpdate);
+        await User.updateOne({ _id: userId }, userUpdate);
 
         if (isFirstInvestment && user.referredBy) {
             const parentId = user.referredBy;
@@ -136,7 +137,7 @@ export async function POST(req) {
 
         console.info("/api/invest created", {
             investmentId: investment._id.toString(),
-            userId: token.id,
+            userId,
             minerName,
             amount: numAmount,
             investmentCycle,
@@ -166,20 +167,21 @@ export async function POST(req) {
  */
 export async function GET(req) {
     try {
-        const token = await getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET });
+        const token = await getAuthToken(req);
+        const userId = getAuthUserId(token);
 
-        if (!token || !token.id) {
+        if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         await connectDB();
 
-        const investments = await Investment.find({ user: token.id })
+        const investments = await Investment.find({ user: userId })
             .sort({ createdAt: -1 })
             .limit(100)
             .lean();
 
-        console.info("/api/invest GET fetched", { user: token.id, count: investments.length });
+        console.info("/api/invest GET fetched", { user: userId, count: investments.length });
         return NextResponse.json({ data: investments }, { status: 200 });
     } catch (err) {
         console.error("/api/invest GET error", err);

@@ -13,9 +13,11 @@ export async function GET(req) {
         await connectDB();
 
         // Get the JWT token
-        const token = await getToken({
-            req,
-            secret: process.env.NEXTAUTH_SECRET
+        const token = await getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET });
+        console.log("[User-Profile API] 🔑 Token check:", {
+            hasToken: !!token,
+            tokenEmail: token?.email,
+            tokenRole: token?.role
         });
 
         if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
