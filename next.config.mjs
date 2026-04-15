@@ -2,11 +2,6 @@
 
 const nextConfig = {
 
-  // ── React Compiler (already enabled — keep it) ───────────────────────────
-  // Automatically memoises components and hooks at the compiler level,
-  // eliminating the need for manual useMemo/useCallback in most cases.
-  reactCompiler: true,
-
   // ── React strict mode ────────────────────────────────────────────────────
   // Catches side-effects and deprecated API usage in development.
   // Reduces the React production runtime size slightly.

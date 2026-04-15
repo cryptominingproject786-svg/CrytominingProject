@@ -1,13 +1,13 @@
 import { Suspense } from "react";
-import { connection } from "next/server";
 
 import connectDB from "../../lib/mongoDb";
 import Recharge from "../../models/Recharge";
 import AdminClient from "../dashbord/AdminClient";
 
+export const dynamic = "force-dynamic";
+
 // ── Data-fetching component (runs dynamically inside Suspense) ────────────────
 async function AdminData() {
-    await connection(); // marks this subtree as dynamic — safe inside Suspense
     await connectDB();  // ← was commented out; required so Mongoose is connected
     //   before Recharge.find() runs on a cold serverless start
 

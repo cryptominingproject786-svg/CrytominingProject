@@ -6,7 +6,7 @@ import connectDB from "../../../lib/mongoDb";
 import User from "../../../models/User";
 import limiter from "../../../lib/rateLimiter";
 
-export const authOptions = {
+const authOptions = {
     providers: [
         CredentialsProvider({
             name: "Credentials",
