@@ -185,7 +185,7 @@ function UserData() {
     /** Fetch user data from server. useCallback with [] dep → created once. */
     const fetchUser = useCallback(async () => {
         try {
-            const res = await fetch("/api/user/me");
+            const res = await fetch("/api/user/me", { credentials: "include" });
             const json = await res.json();
             if (res.ok) {
                 setBalance(json.data?.balance ?? 0);
