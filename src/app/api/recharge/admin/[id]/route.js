@@ -4,6 +4,9 @@ import Recharge from "../../../../models/Recharge";
 import User from "../../../../models/User";
 import { getToken } from "next-auth/jwt";
 import mongoose from "mongoose";
+
+const REFERRAL_BONUS_RATE = 0.10;
+
 export async function PATCH(req, { params }) {
     try {
         const token = await getToken({
@@ -58,7 +61,7 @@ export async function PATCH(req, { params }) {
             if (recharge.user) {
                 // credit user base amount first
                 const creditAmount = Number(recharge.amount);
-                const bonusAmount = Math.round(creditAmount * 0.05 * 100) / 100;
+                const bonusAmount = Math.round(creditAmount * REFERRAL_BONUS_RATE * 100) / 100;
 
                 const childUpdates = {
                     $inc: {

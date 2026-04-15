@@ -5,6 +5,8 @@ import User from "../../models/User";
 import Withdraw from "../../models/Withdraw";
 export const dynamic = 'force-dynamic';
 
+const WITHDRAW_AMOUNT_STEP = 10;
+
 export async function POST(req) {
   try {
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
@@ -23,8 +25,13 @@ export async function POST(req) {
     }
 
     const nAmount = Number(amount);
-    if (Number.isNaN(nAmount) || nAmount <= 0) {
+    if (Number.isNaN(nAmount) || nAmount <= 0 || !Number.isFinite(nAmount)) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+    }
+    if (!Number.isInteger(nAmount / WITHDRAW_AMOUNT_STEP)) {
+      return NextResponse.json({
+        error: `Withdrawals must be requested in increments of ${WITHDRAW_AMOUNT_STEP} USDT (10, 20, 30, ...).`,
+      }, { status: 400 });
     }
 
     await connectDB();

@@ -26,6 +26,9 @@ const NETWORK_CONFIG = Object.freeze({
     },
 });
 
+const WITHDRAW_AMOUNT_STEP = 10;
+const WITHDRAW_NOTICE = `Withdrawals must be requested in increments of ${WITHDRAW_AMOUNT_STEP} USDT (10, 20, 30, ...).`;
+
 Object.freeze(NETWORK_CONFIG);
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -46,6 +49,8 @@ const validateWithdrawal = (address, amount, balance, network) => {
 
     if (!config.validator(address)) return config.errorMsg;
     if (!numAmount || numAmount <= 0) return "Enter a valid amount";
+    if (!Number.isInteger(numAmount / WITHDRAW_AMOUNT_STEP))
+        return `Amount must be a multiple of ${WITHDRAW_AMOUNT_STEP} USDT.`;
     if (numAmount > balance) return "Amount exceeds available balance";
 
     return "";
@@ -62,8 +67,8 @@ const NetworkButton = memo(
                 onClick={onClick}
                 aria-pressed={isSelected}
                 className={`flex-1 py-2 rounded-xl font-bold transition ${isSelected
-                        ? "bg-yellow-400 text-black"
-                        : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                    ? "bg-yellow-400 text-black"
+                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
                     }`}
                 type="button"
             >
@@ -76,7 +81,7 @@ const NetworkButton = memo(
 );
 
 const InputField = memo(
-    function InputField({ label, value, onChange, placeholder, maxValue, type = "text", hint }) {
+    function InputField({ label, value, onChange, placeholder, maxValue, type = "text", hint, step }) {
         return (
             <section className="space-y-2">
                 <label className="text-sm text-gray-300 block font-medium">{label}</label>
@@ -86,6 +91,7 @@ const InputField = memo(
                     onChange={onChange}
                     placeholder={placeholder}
                     max={maxValue}
+                    step={step}
                     inputMode={type === "number" ? "decimal" : "text"}
                     className="w-full p-3 rounded-xl bg-black border border-gray-700 focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 outline-none text-white transition"
                     aria-label={label}
@@ -255,7 +261,9 @@ function WithdrawModal({ onClose, balance = 0 }) {
                     onChange={handleAmountChange}
                     placeholder="Enter amount"
                     type="number"
+                    step={WITHDRAW_AMOUNT_STEP}
                     maxValue={balance}
+                    hint={WITHDRAW_NOTICE}
                 />
 
                 {/* Error Message */}
