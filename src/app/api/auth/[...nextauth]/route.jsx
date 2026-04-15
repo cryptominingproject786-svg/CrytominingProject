@@ -4,6 +4,9 @@ import bcrypt from "bcryptjs";
 import connectDB from "../../../lib/mongoDb";
 import User from "../../../models/User";
 import limiter from "../../../lib/rateLimiter";
+import { NEXTAUTH_URL, NEXTAUTH_SECRET, ensureAuthConfig } from "../../../lib/authConfig";
+
+ensureAuthConfig();
 
 const { handlers } = NextAuth({
     providers: [
@@ -89,7 +92,8 @@ const { handlers } = NextAuth({
         },
     },
 
-    secret: process.env.NEXTAUTH_SECRET,
+    secret: NEXTAUTH_SECRET,
+    url: NEXTAUTH_URL,
 
     pages: {
         signIn: "/join",

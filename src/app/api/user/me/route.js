@@ -5,12 +5,13 @@ import connectDB from "../../../lib/mongoDb";
 import User from "../../../models/User";
 import Investment from "../../../models/Investment";
 import { getToken } from "next-auth/jwt";
+import { NEXTAUTH_SECRET } from "../../lib/authConfig";
 
 export async function GET(req) {
     try {
         const token = await getToken({
             req,
-            secret: process.env.NEXTAUTH_SECRET,
+            secret: NEXTAUTH_SECRET,
         });
 
         if (!token?.id) {

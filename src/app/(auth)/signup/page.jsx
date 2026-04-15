@@ -72,7 +72,7 @@ export default function SignupPage() {
                 if (!signInResult || !signInResult.ok) {
                     setError(
                         signInResult?.error ||
-                            "Registration succeeded but login failed. Please sign in manually."
+                        "Registration succeeded but login failed. Please sign in manually."
                     );
                     return;
                 }
