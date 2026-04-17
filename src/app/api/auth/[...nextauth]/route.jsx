@@ -1,13 +1,32 @@
 // app/api/auth/[...nextauth]/route.js
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import EmailProvider from "next-auth/providers/email";
+import { MongoDBAdapter } from "@next-auth/mongodb-adapter";
 import bcrypt from "bcryptjs";
 import connectDB from "../../../lib/mongoDb";
+import mongoClientPromise from "../../../lib/mongoClient";
 import User from "../../../models/User";
 import limiter from "../../../lib/rateLimiter";
+import { sendMagicLinkEmail } from "../../../lib/mailer";
+
+const emailServer =
+    process.env.EMAIL_SERVER ||
+    (process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASS
+        ? `smtp://${encodeURIComponent(process.env.SMTP_USER)}:${encodeURIComponent(process.env.SMTP_PASS)}@${process.env.SMTP_HOST}:${process.env.SMTP_PORT}`
+        : undefined);
 
 const authOptions = {
+    adapter: MongoDBAdapter(mongoClientPromise),
     providers: [
+        EmailProvider({
+            server: emailServer,
+            from: process.env.MAIL_FROM || "no-reply@example.com",
+            maxAge: 15 * 60,
+            async sendVerificationRequest({ identifier: email, url }) {
+                await sendMagicLinkEmail(email, url);
+            },
+        }),
         CredentialsProvider({
             name: "Credentials",
             credentials: {

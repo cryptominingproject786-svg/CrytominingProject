@@ -63,24 +63,26 @@ export default function SignupPage() {
                     return;
                 }
 
-                const signInResult = await signIn("credentials", {
-                    email: form.email.trim().toLowerCase(),
-                    password: form.password,
+                const email = form.email.trim().toLowerCase();
+                const appOrigin = process.env.NEXT_PUBLIC_NEXTAUTH_URL || window.location.origin;
+                const callbackUrl = `${appOrigin.replace(/\/$/, "")}/dashboard`;
+                const magicResult = await signIn("email", {
+                    email,
                     redirect: false,
-                    callbackUrl: "/dashboard",
+                    callbackUrl,
                 });
 
-                if (!signInResult || !signInResult.ok) {
+                if (!magicResult || magicResult.error) {
                     setError(
-                        signInResult?.error ||
-                        "Registration succeeded but login failed. Please sign in manually."
+                        magicResult?.error ||
+                        "Signup succeeded but we could not send the login link. Please try signing in manually."
                     );
                     return;
                 }
 
-                await fetch("/api/auth/session", { cache: "no-store" });
-
-                router.replace(signInResult.url || "/dashboard");
+                setSuccess(
+                    "You successfully signed up. A login link has been sent to your email. Check your inbox and click the link to go to your dashboard."
+                );
             } catch (err) {
                 setError("Network error. Please try again.");
             }
@@ -88,7 +90,7 @@ export default function SignupPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center px-4">
+        <div className="min-h-screen bg-linear-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center px-4">
             <div className="w-full max-w-md bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl p-8">
                 <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">
                     Create your account
