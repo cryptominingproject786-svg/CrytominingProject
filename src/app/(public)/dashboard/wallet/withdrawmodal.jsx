@@ -7,15 +7,14 @@ import React, { useState, useCallback, useMemo, memo } from "react";
 
 const NETWORKS = Object.freeze(["TRC20", "BEP20"]);
 
-// TRC20 addresses: start with "T", exactly 34 characters
+// TRC20 addresses: 64 lowercase hex characters (no prefix)
 // BEP20 addresses: start with "0x", exactly 42 characters
 const NETWORK_CONFIG = Object.freeze({
     TRC20: {
-        placeholder: "e.g. TLiyJWr8A78tU3PCfKspr9F2yW1NNguvg8",
-        exactLength: 34,
-        validator: (address) =>
-            address.startsWith("T") && address.length === 34,
-        errorMsg: "TRC20 address must start with 'T' and be exactly 34 characters",
+        placeholder: "e.g. fbdfd84f2d304c3d0263f9d3ae7430ca83d55db23310e882187341f922b03242",
+        exactLength: 64,
+        validator: (address) => /^[0-9a-fA-F]{64}$/.test(address),
+        errorMsg: "TRC20 address must be exactly 64 hexadecimal characters (0–9, a–f)",
     },
     BEP20: {
         placeholder: "e.g. 0x7658427957142ed434de190c9bb53e5b6d8e4e94",
@@ -41,11 +40,9 @@ const validateWithdrawal = (address, amount, balance, network) => {
 
     if (!address) return "Address is required";
 
-    // Reject wrong-network addresses immediately
+    // BEP20 address pasted into TRC20 field
     if (network === "TRC20" && address.startsWith("0x"))
         return "This looks like a BEP20 address. Please switch to BEP20 or enter a TRC20 address.";
-    if (network === "BEP20" && address.startsWith("T"))
-        return "This looks like a TRC20 address. Please switch to TRC20 or enter a BEP20 address.";
 
     if (!config.validator(address)) return config.errorMsg;
     if (!numAmount || numAmount <= 0) return "Enter a valid amount";
@@ -171,17 +168,17 @@ function WithdrawModal({ onClose, balance = 0 }) {
     // Clear address when switching networks to prevent cross-network entries
     const handleNetworkChange = useCallback((newNetwork) => {
         setNetwork(newNetwork);
-        setAddress("");   // reset address so wrong-network value can't persist
+        setAddress("");
         setError("");
     }, []);
 
     const handleAddressChange = useCallback((e) => {
         const value = e.target.value;
 
-        // Soft guard: warn immediately if the user pastes the wrong network prefix
+        // Soft guard: warn if BEP20 address pasted into TRC20 field
         if (network === "TRC20" && value.startsWith("0x")) {
-            setError("You selected TRC20. Please enter a TRC20 address (starts with 'T').");
-        } else if (network === "BEP20" && value.startsWith("T")) {
+            setError("You selected TRC20. Please enter a TRC20 address (64 hex characters).");
+        } else if (network === "BEP20" && !value.startsWith("0x") && value.length > 1) {
             setError("You selected BEP20. Please enter a BEP20 address (starts with '0x').");
         } else {
             setError("");
@@ -251,7 +248,11 @@ function WithdrawModal({ onClose, balance = 0 }) {
                     onChange={handleAddressChange}
                     placeholder={config.placeholder}
                     type="text"
-                    hint={`Must start with '${network === "TRC20" ? "T" : "0x"}' · exactly ${config.exactLength} characters`}
+                    hint={
+                        network === "TRC20"
+                            ? `Must be exactly ${config.exactLength} hexadecimal characters (0–9, a–f)`
+                            : `Must start with '0x' · exactly ${config.exactLength} characters`
+                    }
                 />
 
                 {/* Amount Input */}

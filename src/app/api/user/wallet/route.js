@@ -3,6 +3,8 @@ import connectDB from "../../../lib/mongoDb";
 import { getToken } from "next-auth/jwt";
 import User from "../../../models/User";
 import Withdraw from "../../../models/Withdraw";
+import Recharge from "../../../models/Recharge";
+import ReferralBonus from "../../../models/ReferralBonus";
 import Investment from "../../../models/Investment";
 
 export const dynamic = "force-dynamic";
@@ -131,7 +133,7 @@ export async function GET(req) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         // ── All 4 DB queries fire simultaneously ──────────────────────────────────
-        const [user, withdrawRequests, totalWithdrawalsResult, activeInvestments] =
+        const [user, withdrawRequests, totalWithdrawalsResult, activeInvestments, rechargeHistory, referralBonuses] =
             await Promise.all([
                 User.findById(token.id)
                     .select("balance investedAmount totalEarnings teamEarnings dailyProfit referralCode referralCount")
@@ -144,12 +146,24 @@ export async function GET(req) {
                     .lean(),
 
                 Withdraw.aggregate([
-                    { $match: { user: token.id, status: "approved" } },  // use string id for clarity; adjust if ObjectId needed
+                    { $match: { user: token.id, status: "approved" } },
                     { $group: { _id: null, total: { $sum: "$amount" } } },
                 ]),
 
                 Investment.find({ user: token.id, status: "active" })
                     .select("amount dailyProfit cycleDays claimedProfit lastProfitAt startDate maturityDate totalProfit")
+                    .lean(),
+
+                Recharge.find({ user: token.id })
+                    .sort({ createdAt: -1 })
+                    .limit(20)
+                    .select("network amount txId status createdAt")
+                    .lean(),
+
+                ReferralBonus.find({ parent: token.id })
+                    .sort({ awardedAt: -1 })
+                    .limit(20)
+                    .select("amount description awardedAt type")
                     .lean(),
             ]);
 
@@ -201,6 +215,21 @@ export async function GET(req) {
                     status: w.status,
                     requestedAt: w.requestedAt,
                     adminInvoice: serializeInvoice(w.adminInvoice),
+                })),
+                rechargeHistory: rechargeHistory.map((r) => ({
+                    id: String(r._id),
+                    network: r.network,
+                    amount: r.amount,
+                    txId: r.txId,
+                    status: r.status,
+                    createdAt: r.createdAt,
+                })),
+                referralBonuses: referralBonuses.map((bonus) => ({
+                    id: String(bonus._id),
+                    amount: bonus.amount,
+                    description: bonus.description,
+                    awardedAt: bonus.awardedAt,
+                    type: bonus.type,
                 })),
             },
         });

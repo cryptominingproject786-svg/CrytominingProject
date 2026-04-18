@@ -14,6 +14,7 @@ const initialState = {
     error: null,
     data: null,
     showWithdraw: false,
+    showHistory: false,
 };
 
 function walletReducer(state, action) {
@@ -26,6 +27,10 @@ function walletReducer(state, action) {
             return { ...state, showWithdraw: true };
         case "CLOSE_WITHDRAW":
             return { ...state, showWithdraw: false };
+        case "OPEN_HISTORY":
+            return { ...state, showHistory: true };
+        case "CLOSE_HISTORY":
+            return { ...state, showHistory: false };
         default:
             return state;
     }
@@ -60,12 +65,114 @@ const ModalSkeleton = () => (
         <div className="w-80 h-64 rounded-3xl bg-gray-800 animate-pulse" />
     </div>
 );
+
+const HistoryModal = React.memo(function HistoryModal({ onClose, data }) {
+    const rows = useMemo(() => {
+        if (!data) return [];
+
+        const rechargeRows = (data.rechargeHistory || []).map((item) => ({
+            id: item.id,
+            type: "Recharge",
+            amount: `$${Number(item.amount ?? 0).toFixed(2)}`,
+            status: item.status || "pending",
+            date: new Date(item.createdAt).toLocaleString(),
+            reference: item.txId || item.network || "—",
+            timestamp: new Date(item.createdAt).getTime(),
+        }));
+
+        const withdrawRows = (data.withdrawRequests || []).map((item) => ({
+            id: item.id,
+            type: "Withdrawal",
+            amount: `$${Number(item.amount ?? 0).toFixed(2)}`,
+            status: item.status || "pending",
+            date: new Date(item.requestedAt).toLocaleString(),
+            reference: item.txId || item.network || "—",
+            timestamp: new Date(item.requestedAt).getTime(),
+        }));
+
+        const bonusRows = (data.referralBonuses || []).map((item) => ({
+            id: item.id,
+            type: "Referral bonus",
+            amount: `$${Number(item.amount ?? 0).toFixed(2)}`,
+            status: item.type || "bonus",
+            date: new Date(item.awardedAt).toLocaleString(),
+            reference: item.description || item.type || "Referral",
+            timestamp: new Date(item.awardedAt).getTime(),
+        }));
+
+        return [...rechargeRows, ...withdrawRows, ...bonusRows].sort(
+            (a, b) => b.timestamp - a.timestamp
+        );
+    }, [data]);
+
+    return (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 p-4">
+            <div className="mx-auto w-full max-w-5xl rounded-[2rem] border border-slate-800 bg-slate-950 shadow-2xl ring-1 ring-white/10 overflow-hidden">
+                <div className="flex flex-col gap-4 border-b border-slate-800 bg-slate-900 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 className="text-xl font-semibold text-white">Transaction history</h2>
+                        <p className="mt-1 text-sm text-slate-400">
+                            All recent recharges, withdrawals, and referral bonuses in a lightweight column view.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="inline-flex items-center justify-center rounded-2xl bg-yellow-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-yellow-300"
+                    >
+                        Close
+                    </button>
+                </div>
+                <div className="max-h-[calc(100vh-12rem)] overflow-y-auto p-4">
+                    <div className="grid gap-3 rounded-3xl bg-slate-900 p-4 text-xs uppercase tracking-[0.2em] text-slate-400 sm:grid-cols-[1.8fr_1.1fr_1fr_1.3fr_2fr]">
+                        <span>Type</span>
+                        <span>Amount</span>
+                        <span>Status</span>
+                        <span>Date</span>
+                        <span>Reference</span>
+                    </div>
+                    <div className="mt-3 space-y-2">
+                        {rows.length === 0 ? (
+                            <div className="rounded-3xl border border-dashed border-slate-700 bg-slate-900 p-8 text-center text-sm text-slate-400">
+                                No transaction entries available yet.
+                            </div>
+                        ) : (
+                            rows.map((row) => (
+                                <div
+                                    key={`${row.id}-${row.type}`}
+                                    className="grid gap-3 rounded-3xl border border-slate-800 bg-slate-950 p-4 text-sm sm:grid-cols-[1.8fr_1.1fr_1fr_1.3fr_2fr]"
+                                >
+                                    <span className="font-semibold text-white">{row.type}</span>
+                                    <span className="text-yellow-300">{row.amount}</span>
+                                    <span className="text-slate-300">{row.status}</span>
+                                    <span className="text-slate-400">{row.date}</span>
+                                    <span className="truncate text-slate-200">{row.reference}</span>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+                <div className="flex flex-col gap-3 border-t border-slate-800 bg-slate-900 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-sm text-slate-300">
+                        Referral code: <span className="font-semibold text-white">{data?.referralCode || "—"}</span>
+                    </div>
+                    <div className="text-sm text-slate-300">
+                        Team earnings: <span className="font-semibold text-yellow-300">${Number(data?.teamEarnings ?? 0).toFixed(2)}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+});
+
 export default function WalletPage() {
     const [state, dispatch] = useReducer(walletReducer, initialState);
-    const { loading, error, data, showWithdraw } = state;
+    const { loading, error, data, showWithdraw, showHistory } = state;
     const isInitialLoad = useRef(true);
     const openWithdraw = useCallback(() => dispatch({ type: "OPEN_WITHDRAW" }), []);
     const closeWithdraw = useCallback(() => dispatch({ type: "CLOSE_WITHDRAW" }), []);
+    const openHistory = useCallback(() => dispatch({ type: "OPEN_HISTORY" }), []);
+    const closeHistory = useCallback(() => dispatch({ type: "CLOSE_HISTORY" }), []);
 
     // ── Fetch + auto-refresh ─────────────────────────────────────────────────
     useEffect(() => {
@@ -154,6 +261,13 @@ export default function WalletPage() {
                     <h1 className="text-3xl md:text-4xl font-extrabold text-yellow-400">
                         Wallet Dashboard
                     </h1>
+
+                    <button
+                        onClick={openHistory}
+                        className="rounded-3xl bg-slate-900/90 px-6 py-3 text-sm font-semibold text-yellow-300 shadow-lg shadow-yellow-500/10 transition hover:bg-slate-800"
+                    >
+                        View full transaction history
+                    </button>
                 </header>
 
                 {/* ── Loading state ────────────────────────────────────────── */}
@@ -209,16 +323,6 @@ export default function WalletPage() {
                                     }`}
                             >
                                 Withdraw
-                            </button>
-                            <button
-                                aria-label="Your transaction History"
-                                className={`bg-black text-yellow-400 font-bold px-5 sm:px-6 py-2 sm:py-3 rounded-xl shadow-lg transition duration-300 text-sm sm:text-base md:text-lg
-                                    ${isWithdrawDisabled
-                                        ? "opacity-50 cursor-not-allowed"
-                                        : "hover:shadow-2xl hover:bg-gray-900 hover:scale-105"
-                                    }`}
-                            >
-                                History
                             </button>
                         </div>
                     </div>
@@ -295,7 +399,6 @@ export default function WalletPage() {
                         </div>
                     </section>
                 )}
-
             </section>
 
             {/* ── WithdrawModal (lazy — only downloaded on first open) ─────── */}
@@ -311,6 +414,8 @@ export default function WalletPage() {
                     />
                 </Suspense>
             )}
+
+            {showHistory && data && <HistoryModal onClose={closeHistory} data={data} />}
         </main>
     );
 }
