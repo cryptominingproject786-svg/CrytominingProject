@@ -27,6 +27,7 @@ const STATUS = {
     ROOT: "root",
     QUALIFIED: "qualified",
     PENDING: "pending",
+    ZERO: "zero",
     GHOST: "ghost",
     EMPTY: "empty",
 };
@@ -90,12 +91,12 @@ function CheckBadge() {
    • empty     → dashed border only (capacity placeholder)
 ───────────────────────────────────────────── */
 const NODE_STYLES = {
-    [STATUS.ROOT]: "bg-amber-500  border-amber-400   text-white",
-    [STATUS.QUALIFIED]: "bg-emerald-500 border-emerald-400 text-white shadow-lg shadow-emerald-500/30",
-    [STATUS.PENDING]: "bg-white       border-slate-300   text-slate-800",
-    // Brighter ghost: visible slate-700 bg + slate-500 dashed border + slate-400 icon
-    [STATUS.GHOST]: "bg-slate-700   border-slate-500   text-slate-400 border-dashed",
-    [STATUS.EMPTY]: "bg-slate-800/60 border-slate-600  border-dashed  text-slate-600",
+    [STATUS.ROOT]: "bg-amber-600 border-amber-500 text-white shadow-lg shadow-amber-500/25",
+    [STATUS.QUALIFIED]: "bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-500/30",
+    [STATUS.PENDING]: "bg-white border-slate-300 text-slate-950 shadow-sm",
+    [STATUS.ZERO]: "bg-red-600 border-red-500 text-white shadow-lg shadow-red-500/30",
+    [STATUS.GHOST]: "bg-slate-900 border-slate-800 text-slate-500 border-dashed",
+    [STATUS.EMPTY]: "bg-slate-950/90 border-slate-800 border-dashed text-slate-500",
 };
 
 const ReferralNode = React.memo(function ReferralNode({
@@ -118,11 +119,13 @@ const ReferralNode = React.memo(function ReferralNode({
                 {isVisible && (
                     <PersonIcon
                         color={
-                            status === STATUS.ROOT ? "#ffffff" :
-                                status === STATUS.QUALIFIED ? "#ffffff" :
-                                    status === STATUS.PENDING ? "#1e293b" :
-                                        status === STATUS.GHOST ? "#94a3b8" : // slate-400 — clearly visible
-                                            "#475569"
+                            status === STATUS.ROOT || status === STATUS.QUALIFIED || status === STATUS.ZERO
+                                ? "#ffffff"
+                                : status === STATUS.PENDING
+                                    ? "#0f172a"
+                                    : status === STATUS.GHOST
+                                        ? "#94a3b8"
+                                        : "#64748b"
                         }
                         size={22}
                     />
@@ -195,10 +198,11 @@ function buildNodes(count, capacity, filledStatus, qualifiedUpTo = 0) {
 ───────────────────────────────────────────── */
 function Legend() {
     const items = [
-        { cls: "bg-amber-500  border-amber-400", label: "You (root)" },
-        { cls: "bg-emerald-500 border-emerald-400", label: "Active (invested)" },
-        { cls: "bg-white       border-slate-300", label: "Joined, no invest" },
-        { cls: "bg-slate-700   border-slate-500 border-dashed", label: "Open slot" },
+        { cls: "bg-amber-600 border-amber-500", label: "You (root)" },
+        { cls: "bg-emerald-600 border-emerald-500", label: "Invested" },
+        { cls: "bg-white border-slate-300", label: "Referred sign-up" },
+        { cls: "bg-red-600 border-red-500", label: "Zero balance" },
+        { cls: "bg-slate-900 border-slate-800 border-dashed", label: "Open slot" },
     ];
     return (
         <div className="flex flex-wrap gap-4 mt-2">
@@ -216,13 +220,13 @@ function Legend() {
    ReferralNetwork — full pyramid section
 ───────────────────────────────────────────── */
 const ReferralNetwork = React.memo(function ReferralNetwork({ data }) {
-    const directRefs = data?.directReferrals ?? [];
+    const directRefs = useMemo(() => data?.directReferrals ?? [], [data?.directReferrals]);
     const totalTeam = data?.teamMembersCount ?? 0;
     const qualifiedCount = data?.qualifiedReferralsCount ?? 0;
     const referralCode = data?.referralCode ?? null;
     const teamEarnings = data?.teamEarnings ?? 0;
 
-    const directQualified = directRefs.filter((r) => r.isQualified).length;
+    const directQualified = useMemo(() => directRefs.filter((r) => r.isQualified).length, [directRefs]);
 
     /* Distribute totalTeam across levels */
     const [l1, l2, l3, l4, l5] = useMemo(() => {
@@ -244,8 +248,12 @@ const ReferralNetwork = React.memo(function ReferralNetwork({ data }) {
                 if (idx >= directRefs.length) return { status: STATUS.GHOST, label: "" };
                 const ref = directRefs[idx];
                 return {
-                    status: ref.isQualified ? STATUS.QUALIFIED : STATUS.PENDING,
-                    showCheck: ref.isQualified,
+                    status: ref.status === "qualified"
+                        ? STATUS.QUALIFIED
+                        : ref.status === "zero"
+                            ? STATUS.ZERO
+                            : STATUS.PENDING,
+                    showCheck: ref.status === "qualified",
                     label: ref.username?.slice(0, 9) || "",
                 };
             }),

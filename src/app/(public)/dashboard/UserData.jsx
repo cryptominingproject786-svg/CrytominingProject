@@ -1,7 +1,5 @@
 "use client";
 
-
-
 import React, {
     useState,
     useEffect,
@@ -13,7 +11,6 @@ import React, {
 import { useRouter } from "next/navigation";
 
 // ── Lazy-loaded heavy components ─────────────────────────────────────────────
-// Both are deferred so they don't block the initial paint of the dashboard.
 const RechargeModal = lazy(() => import("./RechargeModal"));
 const InvestmentSection = lazy(() => import("../User/InvestmentSection"));
 
@@ -42,8 +39,6 @@ const ACTIVITIES = Object.freeze([
 ]);
 
 // ── ActionCard ───────────────────────────────────────────────────────────────
-// Lifted OUTSIDE UserData so React.memo actually prevents re-renders.
-// All props are primitives or stable references → memo bail-out works perfectly.
 const ActionCard = React.memo(function ActionCard({ icon, label, color, onClick }) {
     const textColor =
         label === "Company Profile" || label === "Premium Features"
@@ -56,11 +51,7 @@ const ActionCard = React.memo(function ActionCard({ icon, label, color, onClick 
             aria-label={label}
             className={`relative ${color} rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center ${textColor} font-bold cursor-pointer shadow-xl hover:shadow-2xl hover:-translate-y-2 transform transition-all duration-500`}
         >
-            {/* aria-hidden keeps decorative emojis out of the accessibility tree */}
-            <span
-                className="text-4xl sm:text-5xl mb-3 sm:mb-4"
-                aria-hidden="true"
-            >
+            <span className="text-4xl sm:text-5xl mb-3 sm:mb-4" aria-hidden="true">
                 {icon}
             </span>
             <h3 className="text-base sm:text-lg md:text-xl text-center">{label}</h3>
@@ -69,10 +60,7 @@ const ActionCard = React.memo(function ActionCard({ icon, label, color, onClick 
 });
 
 // ── ActivityCard ─────────────────────────────────────────────────────────────
-// Lifted OUTSIDE UserData. ACTIVITIES is static → this component never
-// re-renders after the initial mount.
 const ActivityCard = React.memo(function ActivityCard({ a }) {
-    // Computed once; `a` reference never changes (frozen static data).
     const percent = Math.min(
         100,
         Math.round((a.invited / Math.max(1, a.need)) * 100)
@@ -84,12 +72,10 @@ const ActivityCard = React.memo(function ActivityCard({ a }) {
             role="region"
             className="relative bg-gradient-to-tr from-gray-800 to-black/70 backdrop-blur-md rounded-3xl p-4 sm:p-6 md:p-6 shadow-2xl border border-yellow-400 hover:scale-105 transform transition duration-500 cursor-pointer"
         >
-            {/* Reward badge */}
             <div className="absolute right-3 sm:right-4 top-3 sm:top-4 inline-flex items-center justify-center bg-yellow-500 text-black font-bold px-3 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm shadow-lg">
                 {a.reward}
             </div>
 
-            {/* Action buttons */}
             <div className="absolute right-3 sm:right-4 bottom-3 sm:bottom-4 flex flex-col gap-2 sm:gap-3">
                 <button
                     aria-label="View calendar"
@@ -105,7 +91,6 @@ const ActivityCard = React.memo(function ActivityCard({ a }) {
                 </button>
             </div>
 
-            {/* Content */}
             <div className="flex flex-col gap-3 sm:gap-4">
                 <h3
                     id={`activity-title-${a.id}`}
@@ -146,14 +131,13 @@ const ActivityCard = React.memo(function ActivityCard({ a }) {
         </article>
     );
 });
-
-// ── Skeleton fallbacks for Suspense ──────────────────────────────────────────
-// Shown while lazy chunks are downloading — prevents layout shift.
 const InvestmentSkeleton = () => (
     <div
         aria-busy="true"
         aria-label="Loading investment section"
-        className="h-32 rounded-3xl bg-gray-800 animate-pulse"
+        aria-live="polite"
+        className="min-h-[8rem] rounded-3xl bg-gray-800 animate-pulse"
+        style={{ containIntrinsicSize: "0 128px" }}
     />
 );
 
@@ -176,13 +160,9 @@ function UserData() {
     const router = useRouter();
 
     // ── Stable callbacks ──────────────────────────────────────────────────────
-
-    /** Open/close modal — stable references so RechargeModal never re-renders
-     *  due to a prop change when other state updates happen. */
     const openRecharge = useCallback(() => setShowRecharge(true), []);
     const closeRecharge = useCallback(() => setShowRecharge(false), []);
 
-    /** Fetch user data from server. useCallback with [] dep → created once. */
     const fetchUser = useCallback(async () => {
         try {
             const res = await fetch("/api/user/me", {
@@ -203,8 +183,6 @@ function UserData() {
     }, []);
 
     // ── Effects ───────────────────────────────────────────────────────────────
-
-    /** Initial fetch + drain any pending profit credit that fired before mount. */
     useEffect(() => {
         fetchUser();
         if (typeof window !== "undefined" && window.__pendingProfitCredit) {
@@ -215,13 +193,11 @@ function UserData() {
         }
     }, [fetchUser]);
 
-    /** Re-fetch after a successful investment so balance reflects the new state. */
     useEffect(() => {
         window.addEventListener("investmentSuccess", fetchUser);
         return () => window.removeEventListener("investmentSuccess", fetchUser);
     }, [fetchUser]);
 
-    /** Increment balance locally when a profitCredit event is dispatched. */
     useEffect(() => {
         const handleProfit = (e) => {
             const amt = Number(e?.detail) || 0;
@@ -235,12 +211,6 @@ function UserData() {
     }, []);
 
     // ── Derived / memoised values ─────────────────────────────────────────────
-
-    /**
-     * cards: rebuilt only when `router` identity changes (effectively once).
-     * Using label as key (stable string) avoids reconciliation issues with
-     * index-based keys if order ever changes.
-     */
     const cards = useMemo(
         () => [
             {
@@ -269,28 +239,50 @@ function UserData() {
         [router]
     );
 
-    /** Pre-format balance string to avoid repeated Number() + toFixed in JSX. */
     const displayBalance = useMemo(
         () => `$${Number(balance).toFixed(2)} USDT`,
         [balance]
     );
+    useEffect(() => {
+        const id = "structured-data-dashboard";
+        if (document.getElementById(id)) return;
+        const script = document.createElement("script");
+        script.id = id;
+        script.type = "application/ld+json";
+        script.textContent = JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            name: "Investment Dashboard",
+            applicationCategory: "FinanceApplication",
+            operatingSystem: "All",
+            description:
+                "Manage your USDT balance, investments, and team activities from one dashboard.",
+        });
+        document.head.appendChild(script);
+        return () => document.getElementById(id)?.remove();
+    }, []);
 
     // ── Render ────────────────────────────────────────────────────────────────
     return (
         <>
-            {/*
-             * <main> with itemScope/itemType gives search engines structured
-             * context about this being a financial dashboard.
-             */}
             <main
                 aria-label="User Dashboard"
                 itemScope
                 itemType="https://schema.org/WebPage"
-                className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black p-4 sm:p-6 md:p-10 text-white flex justify-center items-start"
+                className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black p-3 sm:p-4 md:p-5 text-white flex justify-center items-start"
             >
-                <div className="w-full max-w-7xl flex flex-col gap-8 md:gap-10">
 
-                    {/* ── Balance / Recharge ─────────────────────────────── */}
+                <h1 className="sr-only">Investment Dashboard – Manage Your USDT Balance</h1>
+
+                <div className="w-full max-w-7xl flex flex-col gap-4 sm:gap-1 md:gap-10">
+
+
+
+                    <Suspense fallback={<InvestmentSkeleton />}>
+                        <InvestmentSection />
+                    </Suspense>
+
+                    {/* ── Balance / Recharge ────────────────────────────────── */}
                     <section
                         aria-labelledby="recharge-heading"
                         className="relative bg-yellow-500 rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center shadow-2xl transform transition duration-500 hover:scale-105 cursor-pointer"
@@ -305,8 +297,11 @@ function UserData() {
                                     : "My Balance"}
                             </h2>
 
-                            {/* Live balance — updates only when `balance` state changes */}
-                            <p className="text-black font-extrabold text-2xl sm:text-3xl mt-1">
+                            <p
+                                className="text-black font-extrabold text-2xl sm:text-3xl mt-1"
+                                aria-live="polite"
+                                aria-atomic="true"
+                            >
                                 {displayBalance}
                             </p>
 
@@ -316,7 +311,7 @@ function UserData() {
                         </div>
 
                         <button
-                            aria-label="Go to recharge"
+                            aria-label="Open deposit / recharge modal"
                             onClick={openRecharge}
                             className="bg-black text-yellow-500 font-bold px-5 sm:px-6 py-2 sm:py-3 rounded-xl shadow-lg hover:shadow-2xl hover:bg-gray-900 transition duration-300 text-sm sm:text-base md:text-lg cursor-pointer"
                         >
@@ -324,25 +319,22 @@ function UserData() {
                         </button>
                     </section>
 
-                    {/* ── Investment Section (lazy) ──────────────────────── */}
-                    <Suspense fallback={<InvestmentSkeleton />}>
-                        <InvestmentSection />
-                    </Suspense>
-
-                    {/* ── Action Cards ───────────────────────────────────── */}
+                    {/* ── Action Cards ───────────────────────────────────────── */}
                     <section
                         aria-label="Quick actions"
                         className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6"
                     >
                         {cards.map((card) => (
-                            /* Stable string key → no unmount/remount on re-render */
                             <ActionCard key={card.label} {...card} />
                         ))}
                     </section>
 
-                    {/* ── Activities ─────────────────────────────────────── */}
+                    {/* ── Activities ─────────────────────────────────────────── */}
                     <section
                         aria-labelledby="activities-heading"
+                        // content-visibility defers paint of off-screen activities
+                        // on long pages — a Core Web Vitals win on mobile.
+                        style={{ contentVisibility: "auto", containIntrinsicSize: "0 400px" }}
                         className="flex flex-col gap-6"
                     >
                         <h2
@@ -354,7 +346,6 @@ function UserData() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                             {ACTIVITIES.map((a) => (
-                                /* Stable numeric id key */
                                 <ActivityCard key={a.id} a={a} />
                             ))}
                         </div>
@@ -366,10 +357,6 @@ function UserData() {
             {/* ── RechargeModal (lazy, only mounted when open) ──────────── */}
             {showRecharge && (
                 <Suspense fallback={<ModalSkeleton />}>
-                    {/*
-                     * closeRecharge is a stable useCallback reference.
-                     * RechargeModal will NEVER re-render because of this prop.
-                     */}
                     <RechargeModal onClose={closeRecharge} />
                 </Suspense>
             )}
@@ -377,6 +364,4 @@ function UserData() {
     );
 }
 
-// React.memo at the top level prevents re-renders triggered by any parent
-// component that might re-render without changing UserData's own props.
 export default React.memo(UserData);

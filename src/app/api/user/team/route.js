@@ -23,7 +23,7 @@ export async function GET(req) {
         }
 
         const referrals = await User.find({ referredBy: token.id })
-            .select("username createdAt investedAmount firstInvestmentAt referralCount")
+            .select("username createdAt investedAmount firstInvestmentAt referralCount balance activeInvestmentsCount")
             .sort({ createdAt: -1 })
             .lean();
 
@@ -36,14 +36,24 @@ export async function GET(req) {
                     teamMembersCount: user.referralCount ?? 0,
                     qualifiedReferralsCount,
                     teamEarnings: user.teamEarnings ?? 0,
-                    directReferrals: referrals.map((ref) => ({
-                        username: ref.username,
-                        joinedAt: ref.createdAt,
-                        investedAmount: ref.investedAmount ?? 0,
-                        firstInvestmentAt: ref.firstInvestmentAt || null,
-                        referralCount: ref.referralCount ?? 0,
-                        isQualified: Boolean(ref.firstInvestmentAt),
-                    })),
+                    directReferrals: referrals.map((ref) => {
+                        const status = ref.firstInvestmentAt
+                            ? ref.balance === 0
+                                ? "zero"
+                                : "qualified"
+                            : "pending";
+
+                        return {
+                            username: ref.username,
+                            joinedAt: ref.createdAt,
+                            investedAmount: ref.investedAmount ?? 0,
+                            balance: ref.balance ?? 0,
+                            firstInvestmentAt: ref.firstInvestmentAt || null,
+                            referralCount: ref.referralCount ?? 0,
+                            status,
+                            isQualified: status === "qualified",
+                        };
+                    }),
                 },
             },
             { status: 200 }

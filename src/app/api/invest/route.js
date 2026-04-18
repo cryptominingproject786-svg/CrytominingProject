@@ -49,7 +49,7 @@ export async function POST(req) {
         }
 
         // Find the user
-        const user = await User.findById(userId).select("balance username email referredBy");
+        const user = await User.findById(userId).select("balance username email referredBy activeInvestmentsCount referralDailyLastPaidAt firstInvestmentAt");
         if (!user) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
@@ -87,6 +87,7 @@ export async function POST(req) {
             $inc: {
                 balance: -numAmount,
                 investedAmount: numAmount,
+                activeInvestmentsCount: 1,
             },
             $addToSet: {
                 investments: investment._id,
@@ -95,6 +96,13 @@ export async function POST(req) {
 
         if (isFirstInvestment) {
             userUpdate.$set = { firstInvestmentAt: startDate };
+        }
+
+        if (user.referredBy && !user.referralDailyLastPaidAt) {
+            userUpdate.$set = {
+                ...(userUpdate.$set || {}),
+                referralDailyLastPaidAt: user.firstInvestmentAt || startDate,
+            };
         }
 
         await User.updateOne({ _id: userId }, userUpdate);

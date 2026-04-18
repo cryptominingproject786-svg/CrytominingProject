@@ -3,6 +3,7 @@ import connectDB from "../../../lib/mongoDb";
 import User from "../../../models/User";
 import Investment from "../../../models/Investment";
 import { getToken } from "next-auth/jwt";
+import { settleReferralDailyBonusForChild } from "../../../lib/referralDailyBonus";
 export const dynamic = 'force-dynamic';
 
 export async function POST(req) {
@@ -60,17 +61,22 @@ export async function POST(req) {
             claimedProfit: totalProfitForCycle
         });
 
-        // Return principal and all profit to user's balance
+        // Return principal and all profit to user's balance and adjust active count
         const updatedUser = await User.findByIdAndUpdate(
             token.id,
             {
                 $inc: {
                     balance: maturityAmount,
-                    investedAmount: -investment.amount  // Reduce invested amount
-                }
+                    investedAmount: -investment.amount,
+                    activeInvestmentsCount: -1,
+                },
             },
             { new: true }
-        );
+        ).select("referredBy activeInvestmentsCount referralDailyLastPaidAt firstInvestmentAt");
+
+        if (updatedUser?.referredBy) {
+            await settleReferralDailyBonusForChild(updatedUser._id, new Date());
+        }
 
         console.log(`Investment ${investmentId} claimed. User ${token.id} received $${maturityAmount.toFixed(2)}`);
 

@@ -37,7 +37,7 @@ const ReferralBonusSchema = new mongoose.Schema(
             type: String,
             required: true,
             default: "firstReferralBonus",
-            enum: ["firstReferralBonus", "firstReferralRechargeBonus"],
+            enum: ["firstReferralBonus", "firstReferralRechargeBonus", "dailyReferralBonus"],
             index: true,
         },
     },
@@ -46,7 +46,12 @@ const ReferralBonusSchema = new mongoose.Schema(
 
 ReferralBonusSchema.index(
     { parent: 1, referredUser: 1, type: 1 },
-    { unique: true, partialFilterExpression: { type: { $exists: true } } }
+    {
+        unique: true,
+        partialFilterExpression: {
+            type: { $in: ["firstReferralBonus", "firstReferralRechargeBonus"] },
+        },
+    }
 );
 
 export default mongoose.models.ReferralBonus || mongoose.model("ReferralBonus", ReferralBonusSchema);

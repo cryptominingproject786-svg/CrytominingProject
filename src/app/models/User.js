@@ -95,6 +95,7 @@ const UserSchema = new mongoose.Schema(
         referredBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
+            index: true,
         },
         firstInvestmentAt: {
             type: Date,
@@ -102,6 +103,17 @@ const UserSchema = new mongoose.Schema(
         referralCount: {
             type: Number,
             default: 0,
+        },
+        activeInvestmentsCount: {
+            type: Number,
+            default: 0,
+            min: 0,
+            index: true,
+        },
+        referralDailyLastPaidAt: {
+            type: Date,
+            default: null,
+            index: true,
         },
 
         // Recharges
