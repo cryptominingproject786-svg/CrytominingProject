@@ -7,28 +7,57 @@ import React, { useState, useCallback, useMemo, memo } from "react";
 
 const NETWORKS = Object.freeze(["TRC20", "BEP20"]);
 
-// TRC20 addresses: 64 lowercase hex characters (no prefix)
-// BEP20 addresses: start with "0x", exactly 42 characters
+/**
+ * TRC20 (TRON) address format — Base58Check encoding:
+ *   • Always starts with uppercase "T"
+ *   • Exactly 34 characters
+ *   • Characters drawn from Base58 alphabet:
+ *       123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz
+ *     (excludes 0, O, I, l to prevent visual ambiguity)
+ *
+ * Reference address: TLiyJWr8A78tU3PCfKspr9F2yW1NNguvg8
+ *
+ * BEP20 (BSC/Ethereum-compatible) address format:
+ *   • Starts with "0x"
+ *   • Exactly 42 characters total (2-char prefix + 40 hex chars)
+ */
+
+// Base58 alphabet used by TRON (Bitcoin-style, no 0/O/I/l)
+const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+const BASE58_REGEX = new RegExp(`^T[${BASE58_ALPHABET}]{33}$`);
+
 const NETWORK_CONFIG = Object.freeze({
     TRC20: {
-        placeholder: "e.g. fbdfd84f2d304c3d0263f9d3ae7430ca83d55db23310e882187341f922b03242",
-        exactLength: 64,
-        validator: (address) => /^[0-9a-fA-F]{64}$/.test(address),
-        errorMsg: "TRC20 address must be exactly 64 hexadecimal characters (0–9, a–f)",
+        placeholder: "e.g. TLiyJWr8A78tU3PCfKspr9F2yW1NNguvg8",
+        exactLength: 34,
+        /**
+         * Validates a TRC20 (TRON) address:
+         *  1. Must be exactly 34 characters
+         *  2. Must start with uppercase "T"
+         *  3. All characters must belong to the Base58 alphabet
+         */
+        validator: (address) => BASE58_REGEX.test(address),
+        errorMsg:
+            "TRC20 address must be exactly 34 characters, start with 'T', and use only Base58 characters (no 0, O, I, or l)",
     },
     BEP20: {
         placeholder: "e.g. 0x7658427957142ed434de190c9bb53e5b6d8e4e94",
         exactLength: 42,
+        /**
+         * Validates a BEP20 (BSC/ETH-compatible) address:
+         *  1. Must start with "0x"
+         *  2. Must be exactly 42 characters total
+         *  3. Remaining 40 chars must be valid hex digits
+         */
         validator: (address) =>
-            address.startsWith("0x") && address.length === 42,
-        errorMsg: "BEP20 address must start with '0x' and be exactly 42 characters",
+            /^0x[0-9a-fA-F]{40}$/.test(address),
+        errorMsg:
+            "BEP20 address must start with '0x' followed by exactly 40 hexadecimal characters (total 42 chars)",
     },
 });
 
 const WITHDRAW_AMOUNT_STEP = 10;
 const WITHDRAW_NOTICE = `Withdrawals must be requested in increments of ${WITHDRAW_AMOUNT_STEP} USDT (10, 20, 30, ...).`;
-
-Object.freeze(NETWORK_CONFIG);
 
 // ────────────────────────────────────────────────────────────────────────────
 // VALIDATION UTILITY (pure, memoizable)
@@ -40,9 +69,13 @@ const validateWithdrawal = (address, amount, balance, network) => {
 
     if (!address) return "Address is required";
 
-    // BEP20 address pasted into TRC20 field
+    // Cross-network paste guard: BEP20 address entered in TRC20 field
     if (network === "TRC20" && address.startsWith("0x"))
-        return "This looks like a BEP20 address. Please switch to BEP20 or enter a TRC20 address.";
+        return "This looks like a BEP20 address. Please switch to BEP20 or enter a valid TRC20 address starting with 'T'.";
+
+    // Cross-network paste guard: TRC20 address entered in BEP20 field
+    if (network === "BEP20" && address.startsWith("T") && address.length === 34)
+        return "This looks like a TRC20 address. Please switch to TRC20 or enter a valid BEP20 address starting with '0x'.";
 
     if (!config.validator(address)) return config.errorMsg;
     if (!numAmount || numAmount <= 0) return "Enter a valid amount";
@@ -92,13 +125,15 @@ const InputField = memo(
                     inputMode={type === "number" ? "decimal" : "text"}
                     className="w-full p-3 rounded-xl bg-black border border-gray-700 focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 outline-none text-white transition"
                     aria-label={label}
+                    autoComplete="off"
+                    spellCheck={false}
                 />
                 {hint && (
                     <p className="text-xs text-gray-500">{hint}</p>
                 )}
-                {maxValue && type === "number" && (
+                {maxValue !== undefined && type === "number" && (
                     <p className="text-xs text-gray-500">
-                        Available balance: ${maxValue}
+                        Available balance: {maxValue} USDT
                     </p>
                 )}
             </section>
@@ -131,7 +166,7 @@ const NetworkSelector = memo(
                 <label className="text-sm text-gray-300 block font-medium">
                     Select Network
                 </label>
-                <div className="flex gap-3" role="group">
+                <div className="flex gap-3" role="group" aria-label="Select blockchain network">
                     {NETWORKS.map((n) => (
                         <NetworkButton
                             key={n}
@@ -157,7 +192,7 @@ function WithdrawModal({ onClose, balance = 0 }) {
     const [amount, setAmount] = useState("");
     const [error, setError] = useState("");
 
-    // ── Memoized validation ──
+    // ── Memoized real-time validation (shown only after user starts typing) ──
     const validationError = useMemo(() => {
         if (!address && !amount) return "";
         return validateWithdrawal(address, amount, balance, network);
@@ -165,37 +200,43 @@ function WithdrawModal({ onClose, balance = 0 }) {
 
     // ── Handlers ──
 
-    // Clear address when switching networks to prevent cross-network entries
+    // Clear address + error when switching networks to prevent cross-network entries
     const handleNetworkChange = useCallback((newNetwork) => {
         setNetwork(newNetwork);
         setAddress("");
         setError("");
     }, []);
 
-    const handleAddressChange = useCallback((e) => {
-        const value = e.target.value;
+    const handleAddressChange = useCallback(
+        (e) => {
+            const value = e.target.value;
 
-        // Soft guard: warn if BEP20 address pasted into TRC20 field
-        if (network === "TRC20" && value.startsWith("0x")) {
-            setError("You selected TRC20. Please enter a TRC20 address (64 hex characters).");
-        } else if (network === "BEP20" && !value.startsWith("0x") && value.length > 1) {
-            setError("You selected BEP20. Please enter a BEP20 address (starts with '0x').");
-        } else {
+            // Inline cross-network paste warnings
+            if (network === "TRC20" && value.startsWith("0x")) {
+                setError("You selected TRC20. TRC20 addresses start with 'T', not '0x'.");
+            } else if (network === "BEP20" && value.startsWith("T") && value.length >= 2) {
+                setError("You selected BEP20. BEP20 addresses start with '0x'.");
+            } else {
+                setError("");
+            }
+
+            setAddress(value);
+        },
+        [network]
+    );
+
+    const handleAmountChange = useCallback(
+        (e) => {
+            const value = e.target.value;
+            if (Number(value) > balance && value !== "") {
+                setError("Amount exceeds available balance");
+                return;
+            }
+            setAmount(value);
             setError("");
-        }
-
-        setAddress(value);
-    }, [network]);
-
-    const handleAmountChange = useCallback((e) => {
-        const value = e.target.value;
-        if (Number(value) > balance && value !== "") {
-            setError("Amount exceeds available balance");
-            return;
-        }
-        setAmount(value);
-        setError("");
-    }, [balance]);
+        },
+        [balance]
+    );
 
     const handleSubmit = useCallback(async () => {
         const err = validateWithdrawal(address, amount, balance, network);
@@ -206,7 +247,11 @@ function WithdrawModal({ onClose, balance = 0 }) {
             const res = await fetch("/api/withdraw", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ network, amount: Number(amount), address: address.trim() }),
+                body: JSON.stringify({
+                    network,
+                    amount: Number(amount),
+                    address: address.trim(),
+                }),
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || "Withdrawal request failed");
@@ -221,11 +266,11 @@ function WithdrawModal({ onClose, balance = 0 }) {
     return (
         <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
-            role="presentation"
+            role="dialog"
             aria-modal="true"
+            aria-labelledby="withdraw-title"
         >
             <section
-                aria-labelledby="withdraw-title"
                 className="w-full max-w-md bg-gradient-to-br from-gray-900 to-black border border-yellow-400 rounded-3xl shadow-2xl p-6 space-y-5 animate-fadeIn"
             >
                 {/* Header */}
@@ -250,7 +295,7 @@ function WithdrawModal({ onClose, balance = 0 }) {
                     type="text"
                     hint={
                         network === "TRC20"
-                            ? `Must be exactly ${config.exactLength} hexadecimal characters (0–9, a–f)`
+                            ? `Must start with 'T' · exactly ${config.exactLength} Base58 characters`
                             : `Must start with '0x' · exactly ${config.exactLength} characters`
                     }
                 />
@@ -267,8 +312,8 @@ function WithdrawModal({ onClose, balance = 0 }) {
                     hint={WITHDRAW_NOTICE}
                 />
 
-                {/* Error Message */}
-                <ErrorMessage error={error} />
+                {/* Error Message — inline handler errors take priority */}
+                <ErrorMessage error={error || validationError} />
 
                 {/* Actions */}
                 <div className="flex gap-3 pt-4">
@@ -290,14 +335,22 @@ function WithdrawModal({ onClose, balance = 0 }) {
                     </button>
                 </div>
 
-                <script type="application/ld+json">
-                    {JSON.stringify({
-                        "@context": "https://schema.org",
-                        "@type": "TransferAction",
-                        description: "Cryptocurrency withdrawal form",
-                        purpose: "Withdraw funds from investment account",
-                    })}
-                </script>
+                {/* Structured data for SEO / Google rich results */}
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{
+                        __html: JSON.stringify({
+                            "@context": "https://schema.org",
+                            "@type": "TransferAction",
+                            name: "USDT Withdrawal",
+                            description: "Secure USDT cryptocurrency withdrawal via TRC20 or BEP20 network",
+                            instrument: {
+                                "@type": "PaymentMethod",
+                                name: "USDT (Tether)",
+                            },
+                        }),
+                    }}
+                />
             </section>
         </div>
     );

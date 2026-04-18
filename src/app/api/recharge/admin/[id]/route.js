@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import connectDB from "../../../../lib/mongoDb";
 import Recharge from "../../../../models/Recharge";
 import User from "../../../../models/User";
+import ReferralBonus from "../../../../models/ReferralBonus";
 import { getToken } from "next-auth/jwt";
 import mongoose from "mongoose";
 
@@ -59,14 +60,25 @@ export async function PATCH(req, { params }) {
             recharge.confirmedAt = new Date();
 
             if (recharge.user) {
-                // credit user base amount first
                 const creditAmount = Number(recharge.amount);
                 const bonusAmount = Math.round(creditAmount * REFERRAL_BONUS_RATE * 100) / 100;
 
+                const rechargeUser = await User.findById(recharge.user).select("referredBy").lean();
+                const isReferred = rechargeUser?.referredBy && mongoose.Types.ObjectId.isValid(rechargeUser.referredBy);
+                let shouldApplyReferralBonus = false;
+
+                if (isReferred) {
+                    const existingBonus = await ReferralBonus.exists({
+                        parent: rechargeUser.referredBy,
+                        referredUser: rechargeUser._id,
+                        type: "firstReferralRechargeBonus",
+                    });
+                    shouldApplyReferralBonus = !existingBonus;
+                }
+
                 const childUpdates = {
                     $inc: {
-                        balance: creditAmount + bonusAmount,
-                        totalEarnings: bonusAmount,
+                        balance: creditAmount,
                     },
                     $set: {
                         lastRechargeAt: recharge.confirmedAt,
@@ -77,11 +89,14 @@ export async function PATCH(req, { params }) {
                     },
                 };
 
-                const rechargeUser = await User.findById(recharge.user).select("referredBy").lean();
+                if (shouldApplyReferralBonus) {
+                    childUpdates.$inc.totalEarnings = bonusAmount;
+                    childUpdates.$inc.balance += bonusAmount;
+                }
 
                 await User.updateOne({ _id: recharge.user }, childUpdates);
 
-                if (rechargeUser?.referredBy && mongoose.Types.ObjectId.isValid(rechargeUser.referredBy)) {
+                if (shouldApplyReferralBonus) {
                     await User.updateOne(
                         { _id: rechargeUser.referredBy },
                         {
@@ -91,13 +106,28 @@ export async function PATCH(req, { params }) {
                             },
                         }
                     );
+
+                    try {
+                        await ReferralBonus.create({
+                            parent: rechargeUser.referredBy,
+                            referredUser: rechargeUser._id,
+                            amount: bonusAmount,
+                            description: "First referral recharge bonus",
+                            awardedAt: new Date(),
+                            type: "firstReferralRechargeBonus",
+                        });
+                    } catch (error) {
+                        if (error.code !== 11000) {
+                            throw error;
+                        }
+                    }
                 }
 
                 console.info("/api/recharge/admin bonus applied", {
                     userId: String(recharge.user),
                     parentId: rechargeUser?.referredBy ? String(rechargeUser.referredBy) : null,
                     rechargeAmount: creditAmount,
-                    bonusAmount,
+                    bonusAmount: shouldApplyReferralBonus ? bonusAmount : 0,
                 });
             }
         }

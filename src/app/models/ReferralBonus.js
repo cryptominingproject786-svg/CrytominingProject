@@ -17,7 +17,7 @@ const ReferralBonusSchema = new mongoose.Schema(
         investment: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Investment",
-            required: true,
+            required: false,
             index: true,
         },
         amount: {
@@ -37,7 +37,7 @@ const ReferralBonusSchema = new mongoose.Schema(
             type: String,
             required: true,
             default: "firstReferralBonus",
-            enum: ["firstReferralBonus"],
+            enum: ["firstReferralBonus", "firstReferralRechargeBonus"],
             index: true,
         },
     },
