@@ -197,7 +197,7 @@ export default function WalletPage() {
                         </div>
 
                         {/* Withdraw button */}
-                        <div>
+                        <div className="flex ">
                             <button
                                 aria-label="Withdraw funds"
                                 onClick={openWithdraw}
@@ -209,6 +209,16 @@ export default function WalletPage() {
                                     }`}
                             >
                                 Withdraw
+                            </button>
+                            <button
+                                aria-label="Your transaction History"
+                                className={`bg-black text-yellow-400 font-bold px-5 sm:px-6 py-2 sm:py-3 rounded-xl shadow-lg transition duration-300 text-sm sm:text-base md:text-lg
+                                    ${isWithdrawDisabled
+                                        ? "opacity-50 cursor-not-allowed"
+                                        : "hover:shadow-2xl hover:bg-gray-900 hover:scale-105"
+                                    }`}
+                            >
+                                History
                             </button>
                         </div>
                     </div>

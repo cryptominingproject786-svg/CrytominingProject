@@ -320,7 +320,7 @@ function UserData() {
                             onClick={openRecharge}
                             className="bg-black text-yellow-500 font-bold px-5 sm:px-6 py-2 sm:py-3 rounded-xl shadow-lg hover:shadow-2xl hover:bg-gray-900 transition duration-300 text-sm sm:text-base md:text-lg cursor-pointer"
                         >
-                            GO &gt;
+                            Deposit &gt;
                         </button>
                     </section>
 
