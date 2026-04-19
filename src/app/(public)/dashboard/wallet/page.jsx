@@ -9,6 +9,7 @@ import React, {
     lazy,
     Suspense,
 } from "react";
+import Image from "next/image";
 
 const WithdrawModal = lazy(() => import("./withdrawmodal"));
 
@@ -32,6 +33,27 @@ function walletReducer(state, action) {
         case "CLOSE_WITHDRAW": return { ...state, showWithdraw: false };
         case "OPEN_HISTORY":   return { ...state, showHistory: true };
         case "CLOSE_HISTORY":  return { ...state, showHistory: false };
+        case "ADD_WITHDRAW_REQUEST": {
+            const amount = Number(action.payload.amount || 0);
+            return {
+                ...state,
+                data: state.data
+                    ? {
+                          ...state.data,
+                          withdrawRequests: [
+                              action.payload,
+                              ...(state.data.withdrawRequests || []),
+                          ],
+                          balance: Math.max(0, Number(state.data.balance || 0) - amount),
+                          reservedBalance: Math.max(0, Number(state.data.reservedBalance || 0) + amount),
+                      }
+                    : {
+                          withdrawRequests: [action.payload],
+                          balance: Math.max(0, -amount),
+                          reservedBalance: Math.max(0, amount),
+                      },
+            };
+        }
         default:               return state;
     }
 }
@@ -97,7 +119,7 @@ const ReferralCopyCard = React.memo(function ReferralCopyCard({ code }) {
 
                 <div className="flex items-center gap-2">
                     <div role="group" aria-label="Your referral code" className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2">
-                        <svg aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 text-yellow-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-yellow-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                         </svg>
@@ -112,7 +134,7 @@ const ReferralCopyCard = React.memo(function ReferralCopyCard({ code }) {
                         disabled={!code || code === "—"}
                         aria-label={isCopied ? "Referral code copied!" : isError ? "Copy failed — try selecting manually" : "Copy referral code"}
                         className={[
-                            "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-all duration-200",
+                            "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-200",
                             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900",
                             "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100",
                             isCopied ? "bg-green-500 text-white shadow-lg shadow-green-500/30 scale-95"
@@ -338,11 +360,11 @@ const HistoryModal = React.memo(function HistoryModal({ onClose, data }) {
                             </div>
                         ) : (
                             <table
-                                className="w-full min-w-[640px] border-collapse text-left"
+                                className="w-full min-w-160 border-collapse text-left"
                                 aria-label="Transaction history table"
                             >
                                 {/* Sticky header */}
-                                <thead className="sticky top-0 z-10 bg-slate-900 shadow-[0_1px_0_0_theme(colors.slate.800)]">
+                                <thead className="sticky top-0 z-10 bg-slate-900 shadow-[0_1px_0_0_var(--color-slate-800)]">
                                     <tr>
                                         {THEAD_COLS.map((col) => (
                                             <th
@@ -383,7 +405,7 @@ const HistoryModal = React.memo(function HistoryModal({ onClose, data }) {
                                             </td>
 
                                             {/* Reference — truncated with tooltip for long values */}
-                                            <td className="px-3 sm:px-4 py-2.5 sm:py-3 max-w-[140px] sm:max-w-[200px]">
+                                            <td className="px-3 sm:px-4 py-2.5 sm:py-3 max-w-35 sm:max-w-50">
                                                 <span
                                                     title={row.reference}
                                                     className="block truncate text-[10px] sm:text-xs text-slate-300"
@@ -432,8 +454,11 @@ export default function WalletPage() {
     const closeWithdraw = useCallback(() => dispatch({ type: "CLOSE_WITHDRAW" }), []);
     const openHistory   = useCallback(() => dispatch({ type: "OPEN_HISTORY" }),   []);
     const closeHistory  = useCallback(() => dispatch({ type: "CLOSE_HISTORY" }),  []);
+    const addPendingWithdraw = useCallback((withdraw) => {
+        dispatch({ type: "ADD_WITHDRAW_REQUEST", payload: withdraw });
+    }, []);
 
-    // ── Fetch + auto-refresh every 5 s ──────────────────────────────────────
+    // ── Fetch + auto-refresh every 15 s while visible ─────────────────────────
     useEffect(() => {
         let canceled = false;
 
@@ -459,8 +484,22 @@ export default function WalletPage() {
         };
 
         fetchData();
-        const interval = setInterval(fetchData, 5000);
-        return () => { canceled = true; clearInterval(interval); };
+
+        const interval = setInterval(() => {
+            if (document.visibilityState === "visible") fetchData();
+        }, 15000);
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible") fetchData();
+        };
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+
+        return () => {
+            canceled = true;
+            clearInterval(interval);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
     }, []);
 
     // ── Derived values ───────────────────────────────────────────────────────
@@ -493,7 +532,7 @@ export default function WalletPage() {
             aria-label="Wallet Dashboard"
             itemScope
             itemType="https://schema.org/WebPage"
-            className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black text-white px-4 py-8"
+            className="min-h-screen bg-linear-to-br from-black via-gray-900 to-black text-white px-4 py-8"
         >
             <section className="max-w-6xl mx-auto space-y-8">
 
@@ -525,7 +564,7 @@ export default function WalletPage() {
 
                 {/* ── Hero Balance Card ────────────────────────────────────── */}
                 {!loading && !error && (
-                    <div className="bg-gradient-to-r from-yellow-500 to-yellow-400 text-black rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                    <div className="bg-linear-to-r from-yellow-500 to-yellow-400 text-black rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col md:flex-row md:items-center md:justify-between gap-6">
                         <div>
                             <p className="text-sm uppercase tracking-wide">Available Balance</p>
                             <h2
@@ -539,6 +578,11 @@ export default function WalletPage() {
                                 Keep growing your investments{" "}
                                 <span aria-hidden="true">🚀</span>
                             </div>
+                            {data?.reservedBalance > 0 && (
+                                <p className="mt-2 text-sm text-black/70">
+                                    Held for pending withdrawals: ${Number(data.reservedBalance).toFixed(2)}
+                                </p>
+                            )}
                         </div>
                         <div className="flex">
                             <button
@@ -597,12 +641,16 @@ export default function WalletPage() {
                                                 <div className="px-4 py-3 border-b border-slate-800 bg-slate-900/80">
                                                     <p className="text-xs uppercase tracking-wide text-gray-400">Admin Invoice</p>
                                                 </div>
-                                                <img
-                                                    src={w.adminInvoice}
-                                                    alt={`Invoice for withdrawal ${w.txId}`}
-                                                    className="w-full max-h-72 object-contain bg-black"
-                                                    loading="lazy"
-                                                />
+                                                <div className="relative h-72 w-full bg-black">
+                                                    <Image
+                                                        src={w.adminInvoice}
+                                                        alt={`Invoice for withdrawal ${w.txId}`}
+                                                        fill
+                                                        className="object-contain"
+                                                        loading="lazy"
+                                                        sizes="(max-width: 768px) 100vw, 640px"
+                                                    />
+                                                </div>
                                             </div>
                                         ) : (
                                             <div className="mt-2">
@@ -623,7 +671,11 @@ export default function WalletPage() {
             {/* ── WithdrawModal ────────────────────────────────────────────── */}
             {showWithdraw && data && (
                 <Suspense fallback={<ModalSkeleton />}>
-                    <WithdrawModal balance={Number(data.balance ?? 0)} onClose={closeWithdraw} />
+                    <WithdrawModal
+                        balance={Number(data.balance ?? 0)}
+                        onClose={closeWithdraw}
+                        onSuccess={addPendingWithdraw}
+                    />
                 </Suspense>
             )}
 

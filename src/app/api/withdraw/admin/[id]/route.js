@@ -133,16 +133,23 @@ export async function PATCH(req, { params }) {
     // ── Atomic balance deduction (fixes race condition in original) ───────────
     if (status === "approved") {
       const updatedUser = await User.findOneAndUpdate(
-        { _id: withdraw.user, balance: { $gte: withdraw.amount } },
-        { $inc: { balance: -withdraw.amount } },
+        {
+          _id: withdraw.user,
+          balance: { $gte: withdraw.amount },
+          reservedBalance: { $gte: withdraw.amount },
+        },
+        { $inc: { balance: -withdraw.amount, reservedBalance: -withdraw.amount } },
         { new: true, select: "username email phone balance investedAmount" }
       );
 
       if (!updatedUser) {
-        // Either user missing or insufficient balance — check which
         const exists = await User.exists({ _id: withdraw.user });
         return NextResponse.json(
-          { error: exists ? "User balance is lower than requested amount" : "User not found" },
+          {
+            error: exists
+              ? "User funds are no longer available for approval"
+              : "User not found",
+          },
           { status: 400 }
         );
       }
@@ -152,6 +159,10 @@ export async function PATCH(req, { params }) {
     }
 
     if (status === "rejected") {
+      await User.findOneAndUpdate(
+        { _id: withdraw.user, reservedBalance: { $gte: withdraw.amount } },
+        { $inc: { reservedBalance: -withdraw.amount } }
+      );
       withdraw.processedAt = new Date();
       withdraw.processedBy = token.id;
     }

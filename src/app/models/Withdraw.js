@@ -74,5 +74,11 @@ const WithdrawSchema = new mongoose.Schema(
 // Compound index for fast admin queries (status + createdAt)
 WithdrawSchema.index({ status: 1, createdAt: -1 });
 
+// Compound index for fast pending withdraw deduplication and query speed
+WithdrawSchema.index(
+    { user: 1, txId: 1, status: 1 },
+    { unique: true, partialFilterExpression: { status: "pending" } }
+);
+
 export default mongoose.models.Withdraw ||
   mongoose.model("Withdraw", WithdrawSchema);

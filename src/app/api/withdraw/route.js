@@ -9,7 +9,11 @@ const WITHDRAW_AMOUNT_STEP = 10;
 
 export async function POST(req) {
   try {
-    const token = await getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET });
+    const [token] = await Promise.all([
+        getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET }),
+        connectDB(),
+    ]);
+
     if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -34,29 +38,54 @@ export async function POST(req) {
       }, { status: 400 });
     }
 
-    await connectDB();
+    const updatedUser = await User.findOneAndUpdate(
+      {
+        _id: token.id,
+        $expr: {
+          $gte: [
+            { $subtract: ["$balance", { $ifNull: ["$reservedBalance", 0] }] },
+            nAmount,
+          ],
+        },
+      },
+      { $inc: { reservedBalance: nAmount } },
+      { new: true, select: "balance reservedBalance" }
+    ).lean();
 
-    const user = await User.findById(token.id).select("balance");
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    if (nAmount > user.balance) {
-      return NextResponse.json({ error: "Insufficient balance" }, { status: 400 });
+    if (!updatedUser) {
+      const exists = await User.exists({ _id: token.id });
+      return NextResponse.json(
+        { error: exists ? "Insufficient available balance" : "User not found" },
+        { status: exists ? 400 : 404 }
+      );
     }
 
     const feeAmount = Math.round(nAmount * 0.02 * 100) / 100;
     const netAmount = Math.round((nAmount - feeAmount) * 100) / 100;
 
-    const withdraw = await Withdraw.create({
-      user: token.id,
-      network,
-      amount: nAmount,
-      fee: feeAmount,
-      netAmount,
-      txId: String(address).trim(),
-      note: note ? String(note).trim() : undefined,
-    });
+    let withdraw;
+    try {
+      withdraw = await Withdraw.create({
+        user: token.id,
+        network,
+        amount: nAmount,
+        fee: feeAmount,
+        netAmount,
+        txId: String(address).trim(),
+        note: note ? String(note).trim() : undefined,
+        status: "pending",
+        requestedAt: new Date(),
+      });
+    } catch (err) {
+      await User.findByIdAndUpdate(token.id, { $inc: { reservedBalance: -nAmount } });
+      if (err?.code === 11000) {
+        return NextResponse.json(
+          { error: "A pending withdrawal with this TXID already exists" },
+          { status: 409 }
+        );
+      }
+      throw err;
+    }
 
     return NextResponse.json({ data: withdraw }, { status: 201 });
   } catch (err) {
@@ -67,12 +96,13 @@ export async function POST(req) {
 
 export async function GET(req) {
   try {
-    const token = await getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET });
+    const [token] = await Promise.all([
+      getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET }),
+      connectDB(),
+    ]);
     if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    await connectDB();
 
     const withdraws = await Withdraw.find({ user: token.id })
       .sort({ createdAt: -1 })

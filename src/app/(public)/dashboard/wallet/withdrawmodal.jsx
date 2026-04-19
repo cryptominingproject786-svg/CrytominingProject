@@ -186,11 +186,12 @@ const NetworkSelector = memo(
 // MAIN MODAL COMPONENT
 // ────────────────────────────────────────────────────────────────────────────
 
-function WithdrawModal({ onClose, balance = 0 }) {
+function WithdrawModal({ onClose, balance = 0, onSuccess }) {
     const [network, setNetwork] = useState("TRC20");
     const [address, setAddress] = useState("");
     const [amount, setAmount] = useState("");
     const [error, setError] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // ── Memoized real-time validation (shown only after user starts typing) ──
     const validationError = useMemo(() => {
@@ -243,6 +244,8 @@ function WithdrawModal({ onClose, balance = 0 }) {
         if (err) { setError(err); return; }
 
         setError("");
+        setIsSubmitting(true);
+
         try {
             const res = await fetch("/api/withdraw", {
                 method: "POST",
@@ -255,11 +258,27 @@ function WithdrawModal({ onClose, balance = 0 }) {
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || "Withdrawal request failed");
+
+            const payload = json.data;
+            if (payload) {
+                onSuccess?.({
+                    id: String(payload.id || payload._id),
+                    network: payload.network,
+                    txId: String(address).trim(),
+                    amount: Number(amount),
+                    status: payload.status ?? "pending",
+                    requestedAt: payload.requestedAt ?? new Date().toISOString(),
+                    adminInvoice: null,
+                });
+            }
+
             onClose();
         } catch (e) {
             setError(e.message);
+        } finally {
+            setIsSubmitting(false);
         }
-    }, [address, amount, balance, network, onClose]);
+    }, [address, amount, balance, network, onClose, onSuccess]);
 
     const config = NETWORK_CONFIG[network];
 
@@ -326,12 +345,12 @@ function WithdrawModal({ onClose, balance = 0 }) {
                     </button>
                     <button
                         onClick={handleSubmit}
-                        disabled={!!validationError || (!address && !amount)}
+                        disabled={!!validationError || (!address && !amount) || isSubmitting}
                         className="flex-1 py-2 rounded-xl bg-yellow-400 text-black font-bold hover:scale-105 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         type="button"
                         aria-label="Submit withdrawal request"
                     >
-                        Submit
+                        {isSubmitting ? "Submitting…" : "Submit"}
                     </button>
                 </div>
 

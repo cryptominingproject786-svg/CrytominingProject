@@ -136,7 +136,7 @@ export async function GET(req) {
         const [user, withdrawRequests, totalWithdrawalsResult, activeInvestments, rechargeHistory, referralBonuses] =
             await Promise.all([
                 User.findById(token.id)
-                    .select("balance investedAmount totalEarnings teamEarnings dailyProfit referralCode referralCount")
+                    .select("balance reservedBalance investedAmount totalEarnings teamEarnings dailyProfit referralCode referralCount")
                     .lean(),
 
                 Withdraw.find({ user: token.id })
@@ -196,9 +196,16 @@ export async function GET(req) {
             firstInvestmentAt: { $exists: true },
         });
 
+        const availableBalance = Math.max(
+            0,
+            (user.balance ?? 0) - (user.reservedBalance ?? 0)
+        );
+
         return NextResponse.json({
             data: {
-                balance: user.balance ?? 0,
+                balance: availableBalance,
+                rawBalance: user.balance ?? 0,
+                reservedBalance: user.reservedBalance ?? 0,
                 lockedProfit,
                 investedAmount: user.investedAmount ?? 0,
                 referralCode: user.referralCode || "—",

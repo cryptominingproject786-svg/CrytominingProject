@@ -20,7 +20,7 @@ export async function GET(req) {
 
         const [user, investments] = await Promise.all([
             User.findById(userId)
-                .select("username email balance referralCode referralCount")
+                .select("username email balance reservedBalance referralCode referralCount")
                 .lean(),
             Investment.find({ user: userId, status: "active" })
                 .select("amount dailyProfit cycleDays claimedProfit lastProfitAt startDate maturityDate")
@@ -51,11 +51,16 @@ export async function GET(req) {
             totalLockedProfit += claimed + profit;
         }
 
+        const reservedBalance = Math.max(0, user.reservedBalance || 0);
+        const availableBalance = Math.max(0, (user.balance || 0) - reservedBalance);
+
         return NextResponse.json({
             data: {
                 username: user.username,
                 email: user.email,
-                balance: Math.round(user.balance * 100) / 100,
+                balance: Math.round(availableBalance * 100) / 100,
+                reservedBalance: Math.round(reservedBalance * 100) / 100,
+                rawBalance: Math.round((user.balance || 0) * 100) / 100,
                 investedAmount: Math.round(activeInvestedAmount * 100) / 100,
                 lockedProfit: Math.round(totalLockedProfit * 100) / 100,
                 referralCode: user.referralCode || null,
