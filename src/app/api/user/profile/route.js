@@ -39,7 +39,7 @@ export async function GET(req) {
 
         // Fetch the user with relevant fields
         const user = await User.findById(userId)
-            .select("username email role balance investedAmount totalEarnings dailyProfit recharges")
+            .select("username email phone role balance investedAmount totalEarnings dailyProfit recharges")
             .lean();
 
         if (!user) {
