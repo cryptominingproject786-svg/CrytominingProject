@@ -40,11 +40,6 @@ const SectionSkeleton = memo(function SectionSkeleton({ height = "h-40" }) {
         />
     );
 });
-
-// ── ClientOnly ────────────────────────────────────────────────────────────────
-// Renders children only after mount. Server + first client render both return
-// `fallback`, so the HTML is identical and React hydrates without a mismatch.
-// After hydration, the real children are swapped in via a normal state update.
 function ClientOnly({ children, fallback = null }) {
     const [mounted, setMounted] = useState(false);
 
@@ -56,16 +51,6 @@ function ClientOnly({ children, fallback = null }) {
 
     return mounted ? children : fallback;
 }
-
-// ── ImageCarousel ─────────────────────────────────────────────────────────────
-// The <section> shell is rendered on both server and client (stable layout).
-// The <img> inside is gated behind ClientOnly so the server never emits it —
-// no hydration diff possible for the image element.
-//
-// We use a plain <img> instead of next/image <Image fill> because Next.js
-// Image emits extra SSR markup (<ImagePreload>, link rel=preload) that can
-// appear/disappear between server and client renders in Turbopack builds,
-// which is exactly what the error diff was showing.
 const ImageCarousel = memo(function ImageCarousel() {
     const [index, setIndex] = useState(0);
 
@@ -95,7 +80,6 @@ const ImageCarousel = memo(function ImageCarousel() {
                     />
                 }
             >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     key={index}
                     src={CAROUSEL_IMAGES[index].src}
@@ -138,22 +122,9 @@ function UserHome() {
                 aria-label="Crypto Mining Platform Home"
                 itemScope
                 itemType="https://schema.org/WebPage"
-                className="relative min-h-screen text-white px-4 py-4 sm:px-6 lg:px-10"
-                // Browser extensions (MetaMask, ad-blockers) inject extra classes
-                // like `overflow-hidden` before React loads, causing a className
-                // mismatch on this node. suppressHydrationWarning silences it for
-                // this single element without masking errors in child components.
+                className="relative min-h-screen text-white px-4 py-4 sm:px-6 lg:px-10"               
                 suppressHydrationWarning
             >
-                {/*
-                  * Plain <img> for the banner background instead of next/image <Image>.
-                  * next/image with `fill` + `priority` emits a <link rel="preload">
-                  * and an <ImagePreload> component into the SSR stream. In Turbopack
-                  * builds these can be present on the server but absent on the client
-                  * (or vice-versa), producing the "-  <img>" diff seen in the error.
-                  * A plain <img> has no such side-effects and is always stable.
-                */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     src="/banner.png"
                     alt=""
@@ -215,11 +186,7 @@ function UserHome() {
                     </section>
 
                     <ImageCarousel />
-
-                </div>
-            </main>
-
-            <Suspense fallback={<SectionSkeleton height="h-64" />}>
+                    <Suspense fallback={<SectionSkeleton height="h-64" />}>
                 <UserData />
             </Suspense>
             <Suspense fallback={<SectionSkeleton height="h-48" />}>
@@ -228,6 +195,10 @@ function UserHome() {
             <Suspense fallback={<SectionSkeleton height="h-48" />}>
                 <MembersList />
             </Suspense>
+                </div>
+            </main>
+
+            
         </>
     );
 }
