@@ -27,7 +27,7 @@ export default function RootLayout({ children }) {
 
           {/* ✅ Rendered once, visible on every page */}
           <WhatsAppButton
-            phoneNumber="+923464197241"
+            phoneNumber="+447988596249"
             message="Hi! I need help with the Mining Platform."
           />
         </Providers>

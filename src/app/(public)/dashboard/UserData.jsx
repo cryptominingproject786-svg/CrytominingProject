@@ -236,6 +236,19 @@ function UserData() {
         return () => window.removeEventListener("profitCredit", handleProfit);
     }, []);
 
+    /** Increment balance locally when an investment is claimed. */
+    useEffect(() => {
+        const handleClaimed = (e) => {
+            const amt = Number(e?.detail) || 0;
+            if (amt > 0) {
+                setBalance((b) => Math.round((b + amt) * 100) / 100);
+                console.info("balance incremented by investmentClaimed", amt);
+            }
+        };
+        window.addEventListener("investmentClaimed", handleClaimed);
+        return () => window.removeEventListener("investmentClaimed", handleClaimed);
+    }, []);
+
     // ── Derived / memoised values ─────────────────────────────────────────────
 
     /**

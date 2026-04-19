@@ -122,7 +122,7 @@ function UserHome() {
                 aria-label="Crypto Mining Platform Home"
                 itemScope
                 itemType="https://schema.org/WebPage"
-                className="relative min-h-screen text-white px-4 py-4 sm:px-6 lg:px-10"               
+                className="relative min-h-screen text-white"
                 suppressHydrationWarning
             >
                 <img
@@ -144,7 +144,7 @@ function UserHome() {
 
                 <div aria-hidden="true" className="absolute inset-0 bg-black/50 -z-10" />
 
-                <div className="relative max-w-7xl mx-auto">
+                <div className="relative mx-auto w-full max-w-8xl">
 
                     <header className="flex items-center justify-between mb-4 sm:mb-6">
                         <div className="flex items-center gap-2 sm:gap-3">
@@ -188,16 +188,16 @@ function UserHome() {
                     <ImageCarousel />
                     <Suspense fallback={<SectionSkeleton height="h-64" />}>
                 <UserData />
-            </Suspense>
-            <Suspense fallback={<SectionSkeleton height="h-48" />}>
+            </Suspense> 
+             <Suspense fallback={<SectionSkeleton height="h-48" />}>
                 <Miners />
             </Suspense>
             <Suspense fallback={<SectionSkeleton height="h-48" />}>
                 <MembersList />
             </Suspense>
+          
                 </div>
-            </main>
-
+            </main>      
             
         </>
     );

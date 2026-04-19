@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 
-const PHONE_NUMBER = "923001234567"; // ← set your number here (no + or spaces)
+const PHONE_NUMBER = "+447988596249"; // ← set your number here (no + or spaces)
 const DEFAULT_MESSAGE = "Hi! I need support.";
 
 function WhatsAppButton({ phoneNumber = PHONE_NUMBER, message = DEFAULT_MESSAGE, className = "" }) {

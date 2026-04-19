@@ -57,10 +57,7 @@ const InvestmentCard = ({ inv, onClaim, nowTime }) => {
                 new CustomEvent("investmentClaimed", { detail: json.data.totalReceived })
             );
 
-            // ✅ Tell InvestmentSection to refresh its list
-            window.dispatchEvent(new Event("investmentSuccess"));
-
-            // ✅ Bubble up to parent so it can update Redux immediately
+            // ✅ Bubble up to parent so it can remove the claimed card locally
             onClaim(inv._id);
 
         } catch (err) {
