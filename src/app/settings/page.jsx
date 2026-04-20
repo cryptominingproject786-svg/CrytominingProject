@@ -275,17 +275,18 @@ export default function SettingsPage() {
               </p>
             </div>
 
-            {/* Reset Password CTA — always visible, not gated behind load */}
-            <button
-              type="button"
-              onClick={openModal}
-              aria-haspopup="dialog"
-              aria-controls="reset-password-dialog"
-              className="mt-4 sm:mt-0 inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-5 py-2.5 text-sm font-bold uppercase tracking-widest text-yellow-400 transition-all duration-300 hover:border-yellow-500/60 hover:bg-yellow-500/20 hover:shadow-lg hover:shadow-yellow-500/10 focus:outline-none focus:ring-2 focus:ring-yellow-500/40"
-            >
-              <span aria-hidden="true">🔑</span>
-              Reset Password
-            </button>
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={openModal}
+                aria-haspopup="dialog"
+                aria-controls="reset-password-dialog"
+                className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-5 py-2.5 text-sm font-bold uppercase tracking-widest text-yellow-400 transition-all duration-300 hover:border-yellow-500/60 hover:bg-yellow-500/20 hover:shadow-lg hover:shadow-yellow-500/10 focus:outline-none focus:ring-2 focus:ring-yellow-500/40"
+              >
+                <span aria-hidden="true">🔑</span>
+                Reset Password
+              </button>
+            </div>
           </header>
 
           {/* ── Account card ──────────────────────────────────────── */}

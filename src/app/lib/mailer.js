@@ -5,7 +5,7 @@ const EMAIL_SERVER = process.env.EMAIL_SERVER;
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined;
 const SMTP_USER = process.env.SMTP_USER;
-const SMTP_PASS = process.env.SMTP_PASS;
+const SMTP_PASS = process.env.SMTP_PASS || process.env.SMTP_PAS;
 const FROM = process.env.MAIL_FROM || "no-reply@example.com";
 
 let transporter = null;

@@ -91,6 +91,13 @@ const UserSchema = new mongoose.Schema(
         otpExpiry: {
             type: Date,
         },
+        resetToken: {
+            type: String,
+            select: false,
+        },
+        resetTokenExpiry: {
+            type: Date,
+        },
 
         // Referral
         referralCode: {

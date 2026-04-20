@@ -20,6 +20,7 @@
 import { useCallback, useReducer, useTransition } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { isValidEmail, sendForgotPasswordEmail } from "../../lib/forgotPassword";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -247,24 +248,19 @@ export default function JoinPage() {
     (e) => {
       e.preventDefault();
 
-      if (!EMAIL_RE.test(forgot.email)) {
+      if (!isValidEmail(forgot.email)) {
         dispatchForgot({ type: "SET_ERROR", payload: "Enter a valid email address." });
         return;
       }
 
       startForgotTransition(async () => {
         try {
-          const res = await fetch("/api/auth/forgot-password", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: forgot.email.trim().toLowerCase() }),
-          });
-          const data = await res.json();
+          const result = await sendForgotPasswordEmail(forgot.email.trim().toLowerCase());
 
-          if (!res.ok) {
+          if (!result.ok) {
             dispatchForgot({
               type: "SET_ERROR",
-              payload: data?.error || "Unable to send reset email. Please try again.",
+              payload: result.error || "Unable to send reset email. Please try again.",
             });
             return;
           }
