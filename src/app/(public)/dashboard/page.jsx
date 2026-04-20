@@ -24,8 +24,13 @@ const CAROUSEL_IMAGES = Object.freeze([
 const INTERVAL_MS = 3000;
 
 const ANNOUNCEMENT_TEXT =
-    "Your Level 1 team's total deposits reach 2,800 USDT, you will receive a reward of 200 USDT. " +
-    "When your Level 1 team's total deposits reach higher milestones, more rewards will be unlocked.";
+    "🎉 Welcome Bonus: Deposit $50 and get 10% FREE — that's $5 added instantly! " +
+    "💰 Earn $0.25 every day per active user in your network — auto credited. " +
+    "👥 Referral Bonus: Earn 10% on every deposit your friends make — no limit! " +
+    "🏆 Invite 5 friends who deposit $8+ and earn a $25 bonus instantly. " +
+    "📈 Team Earning: Get 1.25% daily on your entire referral team's deposits. " +
+    "🎯 More deposit = more daily income. Start with just $50 USDT today! " +
+    "🍀 Lucky Draw: Refer deposits of $168+ to enter — top prize $6,666 USDT!";
 
 const BLUR_PLACEHOLDER =
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
@@ -119,7 +124,7 @@ function UserHome() {
     return (
         <>
             <main
-                aria-label="Crypto Mining Platform Home"
+                aria-label="BittXs Dashboard"
                 itemScope
                 itemType="https://schema.org/WebPage"
                 className="relative min-h-screen text-white"
@@ -155,7 +160,7 @@ function UserHome() {
                                 ₿
                             </div>
                             <h1 className="font-semibold text-base sm:text-lg lg:text-xl">
-                                Crypto Mining Platform
+                                BittXS
                             </h1>
                         </div>
                     </header>

@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 
 const MIN_PASSWORD_LENGTH = 6;
 
 export default function ResetPasswordPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams?.get("token") || "";
   const [newPassword, setNewPassword] = useState("");
@@ -98,6 +99,18 @@ export default function ResetPasswordPage() {
     [token, newPassword, confirmPassword]
   );
 
+  useEffect(() => {
+    if (status.type !== "success") {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      router.replace("/join");
+    }, 2500);
+
+    return () => window.clearTimeout(timeout);
+  }, [status.type, router]);
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black px-4 py-12 text-white flex items-center justify-center">
       <div className="w-full max-w-md rounded-3xl border border-yellow-500/10 bg-gray-900/90 p-8 shadow-2xl shadow-black/70 backdrop-blur-md">
@@ -154,6 +167,15 @@ export default function ResetPasswordPage() {
                 }`}
               >
                 {status.message}
+              </div>
+            )}
+
+            {status.type === "success" && (
+              <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100">
+                Your password was updated successfully. You will be redirected to sign in automatically, or
+                <a href="/join" className="ml-1 font-bold text-yellow-300 underline hover:text-yellow-200">
+                  click here to sign in now
+                </a>
               </div>
             )}
 

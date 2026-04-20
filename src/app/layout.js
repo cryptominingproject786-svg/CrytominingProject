@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import "./globals.css";
 import Navbar from "./components/Navbar";
 import WhatsAppButton from "./components/WhatsAppButton"; // ← import
+import Footer from "./components/Footer";
 import Providers from "../Redux/Provider";
 
 const geistSans = Inter({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -24,6 +25,9 @@ export default function RootLayout({ children }) {
           <main>
             <Suspense fallback={null}>{children}</Suspense>
           </main>
+          <Suspense fallback={null}>
+            <Footer />
+          </Suspense>
 
           {/* ✅ Rendered once, visible on every page */}
           <WhatsAppButton

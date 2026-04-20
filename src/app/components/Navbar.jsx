@@ -1,56 +1,5 @@
 "use client";
 
-/**
- * Navbar.jsx — Lighthouse-100 optimised navigation component.
- *
- * ── All problems fixed vs. original ─────────────────────────────────────────
- *
- * 1. DesktopAuth & MobileAuth defined INSIDE Navbar as closures.
- *    React created brand-new component types every render → unmounted and
- *    remounted the ENTIRE subtree on every state change (isOpen, profileOpen,
- *    profileData). React.memo was completely irrelevant here.
- *    FIX → Both lifted to module scope as proper memoized components that
- *           receive only the primitive/stable props they need.
- *
- * 2. Eight separate setState calls in the profile fetch (setLoading + setProfileData
- *    in 5 different branches) caused cascading re-renders.
- *    FIX → Single useReducer dispatch per fetch outcome = 1 re-render.
- *
- * 3. displayName was an IIFE with 3 console.log calls recomputed every render.
- *    FIX → useMemo with precise [profileData, session] deps. No console.logs
- *           in production code.
- *
- * 4. navLinks array was recreated every render.
- *    FIX → module-level Object.freeze constant.
- *
- * 5. handleLogout had no useCallback → new reference every render.
- *    FIX → useCallback with stable [] deps.
- *
- * 6. Toggle handlers (setIsOpen, setProfileOpen) were raw setters passed as
- *    inline arrows in JSX → new refs every render → sub-component re-renders.
- *    FIX → stable useCallback wrappers.
- *
- * 7. sessionKey was computed inline and used as a key= hack to force remounts.
- *    Remounting is the most expensive React operation possible.
- *    FIX → Removed entirely. Proper props + memo make the key trick redundant.
- *
- * 8. isRegularUser / isAdmin computed inline on every render.
- *    FIX → useMemo with [status, session] deps.
- *
- * 9. Background image loaded only via inline style → not preloaded by browser,
- *    causes LCP penalty, triggers CLS.
- *    FIX → <link rel="preload"> injected into <head> via React 18 hoisting.
- *
- * 10. All console.log / console.warn / console.error removed from production.
- *     Each call is a synchronous string allocation that blocks the main thread.
- *
- * 11. SVG icons hoisted to module scope as frozen constants — never recreated.
- *
- * 12. SEO: <nav> with aria-label, role="navigation", proper landmark structure,
- *     aria-expanded / aria-haspopup / aria-controls on interactive elements.
- * ────────────────────────────────────────────────────────────────────────────
- */
-
 import React, {
     useReducer,
     useState,
