@@ -4,7 +4,11 @@ const footerLinks = [
   { label: "Home", href: "/" },
   { label: "About", href: "/about" },
   { label: "Privacy", href: "/privacy" },
-  { label: "Support", href: "/contact" },
+  {
+    label: "Support",
+    href: "https://wa.me/447988596249?text=Hi!%20I%20need%20support%20with%20the%20Mining%20Platform.",
+    external: true,
+  },
 ];
 
 const socialLinks = [

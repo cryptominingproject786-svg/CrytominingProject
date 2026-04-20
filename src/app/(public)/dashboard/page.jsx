@@ -151,7 +151,7 @@ function UserHome() {
 
                 <div className="relative mx-auto w-full max-w-8xl">
 
-                    <header className="flex items-center justify-between mb-4 sm:mb-6">
+                    {/* <header className="flex items-center justify-between mb-4 sm:mb-6">
                         <div className="flex items-center gap-2 sm:gap-3">
                             <div
                                 aria-hidden="true"
@@ -163,7 +163,7 @@ function UserHome() {
                                 BittXS
                             </h1>
                         </div>
-                    </header>
+                    </header> */}
 
                     <section
                         aria-label="Platform benefits"
@@ -192,18 +192,18 @@ function UserHome() {
 
                     <ImageCarousel />
                     <Suspense fallback={<SectionSkeleton height="h-64" />}>
-                <UserData />
-            </Suspense> 
-             <Suspense fallback={<SectionSkeleton height="h-48" />}>
-                <Miners />
-            </Suspense>
-            <Suspense fallback={<SectionSkeleton height="h-48" />}>
-                <MembersList />
-            </Suspense>
-          
+                        <UserData />
+                    </Suspense>
+                    <Suspense fallback={<SectionSkeleton height="h-48" />}>
+                        <Miners />
+                    </Suspense>
+                    <Suspense fallback={<SectionSkeleton height="h-48" />}>
+                        <MembersList />
+                    </Suspense>
+
                 </div>
-            </main>      
-            
+            </main>
+
         </>
     );
 }
