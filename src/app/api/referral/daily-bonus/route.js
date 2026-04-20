@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import connectDB from "../../../lib/mongoDb";
 import { processReferralDailyBonuses } from "../../../lib/referralDailyBonus";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req) {
     try {
         const url = new URL(req.url);
