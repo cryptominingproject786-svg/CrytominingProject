@@ -15,8 +15,15 @@ export default auth((req) => {
     }
 
     if (pathname.startsWith("/admin")) {
+        if (pathname.toLowerCase() === "/admin/login" && pathname !== "/admin/login") {
+            return NextResponse.redirect(new URL("/admin/login", req.url));
+        }
+        if (pathname.toLowerCase() === "/admin/signup" && pathname !== "/admin/signup") {
+            return NextResponse.redirect(new URL("/admin/signup", req.url));
+        }
+
         if (!token) {
-            return NextResponse.redirect(new URL("/admin/Login", req.url));
+            return NextResponse.redirect(new URL("/admin/login", req.url));
         }
         if (token.role !== "admin") {
             return NextResponse.redirect(new URL("/", req.url));
@@ -29,7 +36,7 @@ export default auth((req) => {
 export const config = {
     matcher: [
         "/dashboard/:path*",
-        "/admin((?!/Login|/SignUp).*)",
+        "/admin((?!/login|/signup).*)",
     ],
 };
 

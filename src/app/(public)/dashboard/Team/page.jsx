@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /* ─────────────────────────────────────────────
    StatCard
@@ -226,6 +226,30 @@ const ReferralNetwork = React.memo(function ReferralNetwork({ data }) {
     const referralCode = data?.referralCode ?? null;
     const teamEarnings = data?.teamEarnings ?? 0;
 
+    const [copyState, setCopyState] = useState("idle");
+    const timerRef = useRef(null);
+
+    const isCopied = copyState === "copied";
+    const isError = copyState === "error";
+
+    const handleCopyReferral = useCallback(async () => {
+        if (!referralCode) return;
+
+        try {
+            await navigator.clipboard.writeText(referralCode);
+            setCopyState("copied");
+        } catch {
+            setCopyState("error");
+        } finally {
+            window.clearTimeout(timerRef.current);
+            timerRef.current = window.setTimeout(() => setCopyState("idle"), 2200);
+        }
+    }, [referralCode]);
+
+    useEffect(() => {
+        return () => window.clearTimeout(timerRef.current);
+    }, []);
+
     const directQualified = useMemo(() => directRefs.filter((r) => r.isQualified).length, [directRefs]);
 
     /* Distribute totalTeam across levels */
@@ -274,7 +298,7 @@ const ReferralNetwork = React.memo(function ReferralNetwork({ data }) {
     const level5Nodes = useMemo(() => buildNodes(l5, 32, STATUS.GHOST, 0), [l5]);
 
     const statCards = [
-        { label: "Referral Code", value: referralCode || "—" },
+        { label: "Referral Code", value: referralCode || "—", copyable: Boolean(referralCode) },
         { label: "Team Members", value: totalTeam },
         { label: "Qualified", value: qualifiedCount, accent: "emerald" },
         { label: "Team Earnings", value: `$${teamEarnings.toFixed(2)}` },
@@ -305,17 +329,43 @@ const ReferralNetwork = React.memo(function ReferralNetwork({ data }) {
 
                 {/* Stat cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-3 lg:w-auto w-full">
-                    {statCards.map(({ label, value, accent }) => (
+                    {statCards.map(({ label, value, accent, copyable }) => (
                         <div
                             key={label}
-                            className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-center"
+                            className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4"
                         >
-                            <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500 font-semibold leading-snug">
-                                {label}
-                            </p>
+                            <div className="flex items-start justify-between gap-3">
+                                <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500 font-semibold leading-snug">
+                                    {label}
+                                </p>
+
+                                {copyable && (
+                                    <button
+                                        type="button"
+                                        onClick={handleCopyReferral}
+                                        aria-label={isCopied ? "Referral code copied" : isError ? "Copy failed — try selecting manually" : "Copy referral code"}
+                                        className={[
+                                            "inline-flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-200",
+                                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900",
+                                            "disabled:cursor-not-allowed disabled:opacity-40",
+                                            isCopied ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
+                                                : isError ? "bg-red-500 text-white"
+                                                    : "bg-yellow-400 text-slate-950 hover:bg-yellow-300 active:scale-95 shadow-md shadow-yellow-400/30",
+                                        ].join(" ")}
+                                    >
+                                        {isCopied ? (
+                                            <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                        ) : isError ? (
+                                            <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                        ) : (
+                                            <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                                        )}
+                                    </button>
+                                )}
+                            </div>
+
                             <p
-                                className={`mt-2 text-lg font-bold tabular-nums truncate ${accent === "emerald" ? "text-emerald-400" : "text-white"
-                                    }`}
+                                className={`mt-4 text-lg font-bold tabular-nums truncate ${accent === "emerald" ? "text-emerald-400" : "text-white"}`}
                             >
                                 {value}
                             </p>
@@ -491,16 +541,16 @@ export default function Team() {
                                                     <td className="py-4 px-5">
                                                         <span
                                                             className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${ref.isQualified
-                                                                    ? "bg-emerald-500/15 text-emerald-300"
-                                                                    : "bg-yellow-500/15 text-yellow-300"
+                                                                ? "bg-emerald-500/15 text-emerald-300"
+                                                                : "bg-yellow-500/15 text-yellow-300"
                                                                 }`}
                                                         >
                                                             {/* Status dot */}
                                                             <span
                                                                 aria-hidden="true"
                                                                 className={`inline-block h-1.5 w-1.5 rounded-full ${ref.isQualified
-                                                                        ? "bg-emerald-400"
-                                                                        : "bg-yellow-400"
+                                                                    ? "bg-emerald-400"
+                                                                    : "bg-yellow-400"
                                                                     }`}
                                                             />
                                                             {ref.isQualified
