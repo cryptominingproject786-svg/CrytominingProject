@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import connectDB from "../../lib/mongoDb";
+import "../../models/User";
 import Recharge from "../../models/Recharge";
 import AdminClient from "../dashbord/AdminClient";
 

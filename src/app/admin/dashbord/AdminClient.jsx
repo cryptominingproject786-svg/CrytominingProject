@@ -40,11 +40,15 @@ const _caches = {
     stats: { data: null, ts: 0 },
 };
 
-async function cachedFetch(key, url) {
+async function cachedFetch(key, url, options = {}) {
     const c = _caches[key];
     const now = Date.now();
     if (c.data && now - c.ts < CACHE_TTL) return c.data;
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url, {
+        cache: "no-store",
+        credentials: "include",
+        ...options,
+    });
     const json = await res.json();
     if (!res.ok) throw new Error(json?.error || `Server error ${res.status}`);
     c.data = json;
@@ -345,6 +349,7 @@ export default function AdminClient({ initialData }) {
         try {
             const res = await fetch(`/api/recharge/admin/${id}`, {
                 method: "PATCH",
+                credentials: "include",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status: newStatus }),
             });
