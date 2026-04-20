@@ -1,16 +1,21 @@
 "use client";
 
 const footerLinks = [
-  { label: "Home",    href: "/" },
-  { label: "About",   href: "/about" },
+  { label: "Home", href: "/" },
+  { label: "About", href: "/about" },
   { label: "Privacy", href: "/privacy" },
   { label: "Support", href: "/contact" },
 ];
 
 const socialLinks = [
-  { label: "Facebook",  href: "https://facebook.com",  bg: "#1877f2", text: "f" },
-  { label: "Twitter",   href: "https://twitter.com",   bg: "#000000", text: "𝕏" },
-  { label: "LinkedIn",  href: "https://linkedin.com",  bg: "#0a66c2", text: "in" },
+  { label: "Facebook", href: "https://www.facebook.com/share/1QQDt7mjgv", bg: "#1877f2", text: "f" },
+  {
+    label: "WhatsApp",
+    href: "https://whatsapp.com/channel/0029Vb8aKhr6hENp2j9ZRv2t",
+    bg: "#25D366",
+    text: "WA"
+  },
+  { label: "LinkedIn", href: "https://linkedin.com", bg: "#0a66c2", text: "in" },
   { label: "Instagram", href: "https://instagram.com", bg: "#e1306c", text: "ig" },
 ];
 

@@ -11,9 +11,9 @@ import React, {
 } from "react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
 
 // ── Module-level constants ────────────────────────────────────────────────────
-// Defined once — never trigger any re-render, never reallocate memory.
 
 const NAV_LINKS = Object.freeze([
     { href: "/", label: "Home" },
@@ -23,9 +23,9 @@ const NAV_LINKS = Object.freeze([
 ]);
 
 const BANNER_SRC = "/banner.png";
+const LOGO_SRC = "/LogoWeb.png";
 
-// ── Profile state reducer ────────────────────────────────────────────────────
-// Collapses 8 setState branches into 1 dispatch = 1 re-render per outcome.
+// ── Profile state reducer ─────────────────────────────────────────────────────
 
 const PROFILE_INIT = Object.freeze({ loading: false, data: null });
 
@@ -38,109 +38,228 @@ function profileReducer(state, action) {
     }
 }
 
-// ── Reusable SVG icons (module-level frozen JSX is not possible, but memo'd
-//    components are the next best thing — created once, never remounted) ──────
+// ── Icons ─────────────────────────────────────────────────────────────────────
 
 const IconChevron = memo(function IconChevron({ open }) {
     return (
         <svg
             aria-hidden="true"
-            className={`w-4 h-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+            className="w-3.5 h-3.5 transition-transform duration-300"
+            style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor"
         >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
         </svg>
     );
 });
 
 const IconClose = memo(function IconClose() {
     return (
-        <svg aria-hidden="true" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg aria-hidden="true" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
         </svg>
     );
 });
 
-// ── Avatar — shared by desktop and mobile ────────────────────────────────────
+const IconMenu = memo(function IconMenu({ open }) {
+    return (
+        <div className="flex flex-col justify-center items-center w-5 h-5 gap-[5px]">
+            <span
+                style={{
+                    display: "block", width: "20px", height: "1.5px",
+                    background: "currentColor", borderRadius: "2px",
+                    transition: "transform 0.3s ease, opacity 0.3s ease",
+                    transform: open ? "rotate(45deg) translateY(6.5px)" : "none",
+                }}
+            />
+            <span
+                style={{
+                    display: "block", width: "20px", height: "1.5px",
+                    background: "currentColor", borderRadius: "2px",
+                    transition: "opacity 0.3s ease, transform 0.3s ease",
+                    opacity: open ? 0 : 1,
+                    transform: open ? "scaleX(0)" : "none",
+                }}
+            />
+            <span
+                style={{
+                    display: "block", width: "20px", height: "1.5px",
+                    background: "currentColor", borderRadius: "2px",
+                    transition: "transform 0.3s ease, opacity 0.3s ease",
+                    transform: open ? "rotate(-45deg) translateY(-6.5px)" : "none",
+                }}
+            />
+        </div>
+    );
+});
+
+// ── Avatar ────────────────────────────────────────────────────────────────────
+
 const Avatar = memo(function Avatar({ initial, isAdmin, size = "sm" }) {
-    const dim = size === "lg" ? "w-9 h-9 text-sm" : "w-8 h-8 text-sm";
+    const dim = size === "lg" ? "36px" : "32px";
     return (
         <div
             aria-hidden="true"
-            className={`${dim} rounded-full shrink-0 flex items-center justify-center font-bold
-                ${isAdmin ? "bg-red-500 text-white" : "bg-yellow-500 text-black"}`}
+            style={{
+                width: dim, height: dim, borderRadius: "50%", flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontWeight: 700, fontSize: "13px", letterSpacing: "0.02em",
+                background: isAdmin
+                    ? "linear-gradient(135deg, #ef4444, #b91c1c)"
+                    : "linear-gradient(135deg, #EAB308, #CA8A04)",
+                color: isAdmin ? "#fff" : "#000",
+                boxShadow: isAdmin
+                    ? "0 0 0 2px rgba(239,68,68,0.3), 0 2px 8px rgba(239,68,68,0.25)"
+                    : "0 0 0 2px rgba(234,179,8,0.3), 0 2px 8px rgba(234,179,8,0.25)",
+            }}
         >
             {initial || "?"}
         </div>
     );
 });
 
-// ── Desktop dropdown menu ─────────────────────────────────────────────────────
+// ── DropdownMenu ──────────────────────────────────────────────────────────────
+
 const DropdownMenu = memo(function DropdownMenu({ isAdmin, onClose, onLogout }) {
     return (
         <div
             role="menu"
-            className="absolute right-0 mt-3 w-44 bg-zinc-900 border border-white/10 rounded-lg shadow-xl py-1 z-50"
+            style={{
+                position: "absolute", right: 0, top: "calc(100% + 12px)",
+                width: "192px",
+                background: "rgba(10, 10, 10, 0.95)",
+                border: "1px solid rgba(234,179,8,0.15)",
+                borderRadius: "12px",
+                boxShadow: "0 20px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
+                padding: "6px",
+                zIndex: 50,
+                backdropFilter: "blur(20px)",
+                animation: "dropIn 0.18s ease",
+            }}
         >
+            <style>{`
+                @keyframes dropIn {
+                    from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+                    to   { opacity: 1; transform: translateY(0) scale(1); }
+                }
+                .dd-item {
+                    display: block; padding: 9px 12px;
+                    font-size: 13px; font-weight: 500; border-radius: 8px;
+                    color: #e5e5e5; text-decoration: none;
+                    transition: background 0.15s, color 0.15s;
+                    cursor: pointer; width: 100%; text-align: left;
+                    background: transparent; border: none;
+                    letter-spacing: 0.01em;
+                }
+                .dd-item:hover { background: rgba(234,179,8,0.12); color: #EAB308; }
+                .dd-item-danger:hover { background: rgba(239,68,68,0.12); color: #f87171; }
+            `}</style>
+
             {isAdmin ? (
-                <Link
-                    role="menuitem"
-                    href="/admin/dashboard"
-                    onClick={onClose}
-                    className="block px-4 py-2.5 text-sm hover:bg-yellow-500 hover:text-black transition-colors"
-                >
-                    Admin Dashboard
+                <Link role="menuitem" href="/admin/dashboard" onClick={onClose} className="dd-item">
+                    ⚡ Admin Dashboard
                 </Link>
             ) : (
                 <>
-                    <Link role="menuitem" href="/dashboard" onClick={onClose} className="block px-4 py-2.5 text-sm hover:bg-yellow-500 hover:text-black transition-colors">Dashboard</Link>
-                    <Link role="menuitem" href="/settings" onClick={onClose} className="block px-4 py-2.5 text-sm hover:bg-yellow-500 hover:text-black transition-colors">Settings</Link>
+                    <Link role="menuitem" href="/dashboard" onClick={onClose} className="dd-item">
+                        Dashboard
+                    </Link>
+                    <Link role="menuitem" href="/settings" onClick={onClose} className="dd-item">
+                        Settings
+                    </Link>
                 </>
             )}
-            <hr className="border-white/10 my-1" />
-            <button
-                role="menuitem"
-                onClick={onLogout}
-                className="w-full text-left px-4 py-2.5 text-sm hover:bg-red-600 transition-colors"
-            >
-                Logout
+            <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", margin: "4px 0" }} />
+            <button role="menuitem" onClick={onLogout} className="dd-item dd-item-danger">
+                Sign Out
             </button>
         </div>
     );
 });
 
+// ── NavLink (desktop) ─────────────────────────────────────────────────────────
+
+const NavLink = memo(function NavLink({ href, label }) {
+    return (
+        <Link
+            href={href}
+            style={{
+                color: "rgba(255,255,255,0.75)",
+                textDecoration: "none",
+                fontSize: "13.5px",
+                fontWeight: 600,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                padding: "6px 2px",
+                position: "relative",
+                transition: "color 0.2s",
+            }}
+            onMouseEnter={e => {
+                e.currentTarget.style.color = "#EAB308";
+                e.currentTarget.querySelector("span").style.transform = "scaleX(1)";
+            }}
+            onMouseLeave={e => {
+                e.currentTarget.style.color = "rgba(255,255,255,0.75)";
+                e.currentTarget.querySelector("span").style.transform = "scaleX(0)";
+            }}
+        >
+            {label}
+            <span style={{
+                position: "absolute", bottom: 0, left: 0, right: 0,
+                height: "1.5px", background: "#EAB308", borderRadius: "2px",
+                transform: "scaleX(0)", transformOrigin: "left",
+                transition: "transform 0.25s ease",
+            }} />
+        </Link>
+    );
+});
+
 // ── DesktopAuth ───────────────────────────────────────────────────────────────
-// LIFTED OUT of Navbar — React.memo now works perfectly.
-// Only re-renders when its own props change (never on isOpen changes).
+
 const DesktopAuth = memo(function DesktopAuth({
-    isRegularUser,
-    isAdmin,
-    displayName,
-    profileOpen,
-    onToggle,
-    onClose,
-    onLogout,
-    profileRef,
+    isRegularUser, isAdmin, displayName,
+    profileOpen, onToggle, onClose, onLogout, profileRef,
 }) {
     const initial = displayName ? displayName.charAt(0).toUpperCase() : "?";
 
     if (isRegularUser || isAdmin) {
         return (
-            <div className="relative" ref={profileRef}>
+            <div style={{ position: "relative" }} ref={profileRef}>
                 <button
                     onClick={onToggle}
                     aria-expanded={profileOpen}
                     aria-haspopup="menu"
                     aria-label={`Account menu for ${displayName || "user"}`}
-                    className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                    style={{
+                        display: "flex", alignItems: "center", gap: "8px",
+                        background: profileOpen
+                            ? "rgba(234,179,8,0.1)"
+                            : "rgba(255,255,255,0.04)",
+                        border: `1px solid ${profileOpen ? "rgba(234,179,8,0.35)" : "rgba(255,255,255,0.08)"}`,
+                        borderRadius: "10px",
+                        padding: "5px 10px 5px 6px",
+                        color: "#fff", cursor: "pointer",
+                        transition: "background 0.2s, border-color 0.2s",
+                    }}
+                    onMouseEnter={e => {
+                        if (!profileOpen) {
+                            e.currentTarget.style.background = "rgba(255,255,255,0.07)";
+                            e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
+                        }
+                    }}
+                    onMouseLeave={e => {
+                        if (!profileOpen) {
+                            e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                            e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+                        }
+                    }}
                 >
                     <Avatar initial={initial} isAdmin={isAdmin} />
-                    <span>{displayName}</span>
+                    <span style={{ fontSize: "13px", fontWeight: 600, letterSpacing: "0.01em", maxWidth: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {displayName}
+                    </span>
                     <IconChevron open={profileOpen} />
                 </button>
-
                 {profileOpen && (
                     <DropdownMenu isAdmin={isAdmin} onClose={onClose} onLogout={onLogout} />
                 )}
@@ -149,73 +268,198 @@ const DesktopAuth = memo(function DesktopAuth({
     }
 
     return (
-        <>
-            <Link href="/join" className="hover:text-yellow-400 transition-colors duration-200">Join</Link>
-            <Link href="/signup" className="bg-yellow-500 text-black px-4 py-2 rounded-md hover:bg-yellow-400 transition-colors duration-200">Sign Up</Link>
-        </>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <Link
+                href="/join"
+                style={{
+                    color: "rgba(255,255,255,0.7)", textDecoration: "none",
+                    fontSize: "13.5px", fontWeight: 600, letterSpacing: "0.03em",
+                    padding: "7px 14px", borderRadius: "8px",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    transition: "color 0.2s, border-color 0.2s, background 0.2s",
+                }}
+                onMouseEnter={e => {
+                    e.currentTarget.style.color = "#fff";
+                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)";
+                    e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                }}
+                onMouseLeave={e => {
+                    e.currentTarget.style.color = "rgba(255,255,255,0.7)";
+                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
+                    e.currentTarget.style.background = "transparent";
+                }}
+            >
+                Sign In
+            </Link>
+            <Link
+                href="/signup"
+                style={{
+                    background: "linear-gradient(135deg, #EAB308, #CA8A04)",
+                    color: "#000", textDecoration: "none",
+                    fontSize: "13.5px", fontWeight: 700, letterSpacing: "0.03em",
+                    padding: "7px 16px", borderRadius: "8px",
+                    boxShadow: "0 2px 12px rgba(234,179,8,0.3)",
+                    transition: "filter 0.2s, box-shadow 0.2s, transform 0.15s",
+                    display: "inline-block",
+                }}
+                onMouseEnter={e => {
+                    e.currentTarget.style.filter = "brightness(1.1)";
+                    e.currentTarget.style.boxShadow = "0 4px 20px rgba(234,179,8,0.45)";
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={e => {
+                    e.currentTarget.style.filter = "none";
+                    e.currentTarget.style.boxShadow = "0 2px 12px rgba(234,179,8,0.3)";
+                    e.currentTarget.style.transform = "none";
+                }}
+            >
+                Get Started
+            </Link>
+        </div>
     );
 });
 
 // ── MobileAuth ────────────────────────────────────────────────────────────────
-// LIFTED OUT — never re-renders when desktop profile dropdown opens/closes.
+
 const MobileAuth = memo(function MobileAuth({
-    isRegularUser,
-    isAdmin,
-    displayName,
-    onClose,
-    onLogout,
+    isRegularUser, isAdmin, displayName, onClose, onLogout,
 }) {
     const initial = displayName ? displayName.charAt(0).toUpperCase() : "?";
 
     if (isRegularUser || isAdmin) {
         return (
             <div>
-                <div className="flex items-center gap-3 px-3 py-3 mb-1">
+                {/* User card */}
+                <div style={{
+                    display: "flex", alignItems: "center", gap: "12px",
+                    padding: "12px 14px", marginBottom: "8px",
+                    background: "rgba(234,179,8,0.06)",
+                    border: "1px solid rgba(234,179,8,0.12)",
+                    borderRadius: "12px",
+                }}>
                     <Avatar initial={initial} isAdmin={isAdmin} size="lg" />
-                    <span className="text-white font-semibold truncate">{displayName}</span>
+                    <div>
+                        <p style={{ color: "#fff", fontWeight: 700, fontSize: "14px", margin: 0, letterSpacing: "0.01em" }}>
+                            {displayName}
+                        </p>
+                        <p style={{ color: isAdmin ? "#f87171" : "#EAB308", fontSize: "11px", fontWeight: 600, margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                            {isAdmin ? "Administrator" : "Member"}
+                        </p>
+                    </div>
                 </div>
 
                 {isAdmin ? (
-                    <Link href="/admin/dashboard" onClick={onClose} className="block text-white font-semibold px-3 py-3 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-200">
-                        Admin Dashboard
-                    </Link>
+                    <MobileNavItem href="/admin/dashboard" onClick={onClose} icon="⚡">Admin Dashboard</MobileNavItem>
                 ) : (
                     <>
-                        <Link href="/dashboard" onClick={onClose} className="block text-white font-semibold px-3 py-3 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-200">Dashboard</Link>
-                        <Link href="/settings" onClick={onClose} className="block text-white font-semibold px-3 py-3 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-200">Settings</Link>
+                        <MobileNavItem href="/dashboard" onClick={onClose} icon="▦">Dashboard</MobileNavItem>
+                        <MobileNavItem href="/settings" onClick={onClose} icon="⚙">Settings</MobileNavItem>
                     </>
                 )}
-
-                <hr className="border-white/10 my-1" />
-                <button onClick={onLogout} className="text-left text-white font-semibold px-3 py-3 rounded-lg hover:bg-red-600 transition-colors duration-200 w-full">
-                    Logout
+                <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", margin: "8px 0" }} />
+                <button
+                    onClick={onLogout}
+                    style={{
+                        width: "100%", textAlign: "left",
+                        display: "flex", alignItems: "center", gap: "10px",
+                        padding: "12px 14px", borderRadius: "10px",
+                        background: "transparent", border: "none",
+                        color: "#f87171", fontSize: "14px", fontWeight: 600,
+                        cursor: "pointer", letterSpacing: "0.01em",
+                        transition: "background 0.2s",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(239,68,68,0.1)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                    <span style={{ fontSize: "16px" }}>↩</span> Sign Out
                 </button>
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col gap-1">
-            <Link href="/join" onClick={onClose} className="text-white font-semibold px-3 py-3 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-200">Join</Link>
-            <Link href="/signup" onClick={onClose} className="bg-yellow-500 text-black font-bold text-center px-3 py-3 rounded-lg hover:bg-yellow-400 transition-colors duration-200 mt-1">Sign Up</Link>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <Link
+                href="/join"
+                onClick={onClose}
+                style={{
+                    display: "block", textAlign: "center",
+                    padding: "13px", borderRadius: "10px",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    color: "#fff", textDecoration: "none",
+                    fontSize: "14px", fontWeight: 600,
+                    transition: "background 0.2s, border-color 0.2s",
+                }}
+                onMouseEnter={e => {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
+                }}
+                onMouseLeave={e => {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
+                }}
+            >
+                Sign In
+            </Link>
+            <Link
+                href="/signup"
+                onClick={onClose}
+                style={{
+                    display: "block", textAlign: "center",
+                    padding: "13px", borderRadius: "10px",
+                    background: "linear-gradient(135deg, #EAB308, #CA8A04)",
+                    color: "#000", textDecoration: "none",
+                    fontSize: "14px", fontWeight: 700,
+                    boxShadow: "0 4px 16px rgba(234,179,8,0.3)",
+                }}
+            >
+                Get Started →
+            </Link>
         </div>
     );
 });
 
-// ── Navbar (main component) ───────────────────────────────────────────────────
+// ── MobileNavItem helper ──────────────────────────────────────────────────────
+
+const MobileNavItem = memo(function MobileNavItem({ href, onClick, icon, children }) {
+    return (
+        <Link
+            href={href}
+            onClick={onClick}
+            style={{
+                display: "flex", alignItems: "center", gap: "10px",
+                padding: "12px 14px", borderRadius: "10px",
+                color: "rgba(255,255,255,0.85)", textDecoration: "none",
+                fontSize: "14px", fontWeight: 600,
+                transition: "background 0.15s, color 0.15s",
+                letterSpacing: "0.01em",
+            }}
+            onMouseEnter={e => {
+                e.currentTarget.style.background = "rgba(234,179,8,0.08)";
+                e.currentTarget.style.color = "#EAB308";
+            }}
+            onMouseLeave={e => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "rgba(255,255,255,0.85)";
+            }}
+        >
+            <span style={{ fontSize: "15px", opacity: 0.7 }}>{icon}</span>
+            {children}
+        </Link>
+    );
+});
+
+// ── Navbar ────────────────────────────────────────────────────────────────────
+
 export default function Navbar() {
     const { data: session, status } = useSession();
 
-    // UI state — two independent booleans, useState is perfectly fine here.
     const [isOpen, setIsOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
-
-    // Profile data — single dispatch replaces 8 cascading setState calls.
     const [profile, dispatchProfile] = useReducer(profileReducer, PROFILE_INIT);
 
     const profileRef = useRef(null);
 
-    // ── Role derivation (memoised) ────────────────────────────────────────────
     const isRegularUser = useMemo(
         () => status === "authenticated" && session?.user?.role === "user",
         [status, session?.user?.role]
@@ -226,35 +470,26 @@ export default function Navbar() {
         [status, session?.user?.role]
     );
 
-    // ── Display name (memoised — no IIFE, no console.log) ────────────────────
     const displayName = useMemo(() => {
         const pd = profile.data;
         const uRole = session?.user?.role;
         const uEmail = session?.user?.email;
-
         if (
             pd?.username &&
             pd?.role === uRole &&
             pd?.email?.toLowerCase().trim() === uEmail?.toLowerCase().trim()
-        ) {
-            return pd.username;
-        }
+        ) return pd.username;
         return "";
     }, [profile.data, session?.user?.role, session?.user?.email]);
 
-    // ── Profile fetch ─────────────────────────────────────────────────────────
     useEffect(() => {
-        if (status !== "authenticated") {
-            dispatchProfile({ type: "RESET" });
-            return;
-        }
+        if (status !== "authenticated") { dispatchProfile({ type: "RESET" }); return; }
 
         const role = session?.user?.role;
         const email = session?.user?.email;
 
         if (!role || !email || (role !== "user" && role !== "admin")) {
-            dispatchProfile({ type: "RESET" });
-            return;
+            dispatchProfile({ type: "RESET" }); return;
         }
 
         let canceled = false;
@@ -262,47 +497,24 @@ export default function Navbar() {
 
         (async () => {
             try {
-                const endpoint = role === "admin"
-                    ? "/api/auth/admin-profile"
-                    : "/api/user/profile";
-
-                const res = await fetch(endpoint, {
-                    method: "GET",
-                    credentials: "include",
-                    cache: "no-store",
-                });
-
+                const endpoint = role === "admin" ? "/api/auth/admin-profile" : "/api/user/profile";
+                const res = await fetch(endpoint, { method: "GET", credentials: "include", cache: "no-store" });
                 if (canceled) return;
-
-                if (!res.ok) {
-                    dispatchProfile({ type: "RESET" });
-                    return;
-                }
-
+                if (!res.ok) { dispatchProfile({ type: "RESET" }); return; }
                 const json = await res.json();
                 if (!json?.data) { dispatchProfile({ type: "RESET" }); return; }
-
-                // Guard: reject if session/profile mismatch
                 if (
                     json.data.email?.toLowerCase() !== email.toLowerCase() ||
                     json.data.role !== role
-                ) {
-                    dispatchProfile({ type: "RESET" });
-                    return;
-                }
-
+                ) { dispatchProfile({ type: "RESET" }); return; }
                 if (!canceled) dispatchProfile({ type: "SUCCESS", payload: json.data });
-
             } catch {
                 if (!canceled) dispatchProfile({ type: "RESET" });
             }
         })();
 
         return () => { canceled = true; };
-
     }, [status, session?.user?.role, session?.user?.email]);
-
-    // ── Stable handlers (useCallback — sub-components never break memo) ───────
 
     const closeDrawer = useCallback(() => setIsOpen(false), []);
     const toggleDrawer = useCallback(() => setIsOpen((p) => !p), []);
@@ -314,7 +526,6 @@ export default function Navbar() {
         await signOut({ redirect: true, callbackUrl: "/" });
     }, []);
 
-    // ── Outside-click → close profile dropdown ────────────────────────────────
     useEffect(() => {
         const handler = (e) => {
             if (profileRef.current && !profileRef.current.contains(e.target))
@@ -324,14 +535,12 @@ export default function Navbar() {
         return () => document.removeEventListener("mousedown", handler);
     }, []);
 
-    // ── Close drawer on desktop resize ───────────────────────────────────────
     useEffect(() => {
         const handler = () => { if (window.innerWidth >= 768) setIsOpen(false); };
         window.addEventListener("resize", handler, { passive: true });
         return () => window.removeEventListener("resize", handler);
     }, []);
 
-    // ── Body scroll lock while drawer is open ────────────────────────────────
     useEffect(() => {
         document.body.style.overflow = isOpen ? "hidden" : "";
         return () => { document.body.style.overflow = ""; };
@@ -340,43 +549,97 @@ export default function Navbar() {
     // ── Render ────────────────────────────────────────────────────────────────
     return (
         <>
-            {/*
-             * Lighthouse LCP fix: preload the navbar background image.
-             * React 18+ hoists <link> tags to <head> automatically.
-             * This eliminates the render-blocking LCP penalty from the
-             * inline background-image style below.
-             */}
-            <link
-                rel="preload"
-                as="image"
-                href={BANNER_SRC}
-                fetchPriority="high"
-            />
+            <link rel="preload" as="image" href={BANNER_SRC} fetchPriority="high" />
+
+            <style>{`
+                .nav-mobile-link {
+                    display: flex; align-items: center; gap: 10px;
+                    padding: 12px 14px; border-radius: 10px;
+                    color: rgba(255,255,255,0.8); text-decoration: none;
+                    font-size: 14px; font-weight: 600; letter-spacing: 0.02em;
+                    text-transform: uppercase; transition: background 0.15s, color 0.15s;
+                }
+                .nav-mobile-link:hover {
+                    background: rgba(234,179,8,0.08);
+                    color: #EAB308;
+                }
+            `}</style>
 
             <nav
                 role="navigation"
                 aria-label="Main navigation"
-                className="relative w-full h-20 flex items-center justify-between px-6 md:px-10 text-white bg-cover bg-center z-50"
-                style={{ backgroundImage: `url('${BANNER_SRC}')` }}
+                style={{
+                    position: "relative",
+                    width: "100%",
+                    height: "68px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "0 24px",
+                    color: "#fff",
+                    backgroundImage: `url('${BANNER_SRC}')`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    zIndex: 50,
+                    borderBottom: "1px solid rgba(255,255,255,0.06)",
+                }}
             >
-                {/* Overlay — aria-hidden so crawlers skip the decorative layer */}
-                <div aria-hidden="true" className="absolute inset-0 bg-black/60" />
+                {/* Dark overlay with slight blur-tint for glassmorphism feel */}
+                <div style={{
+                    position: "absolute", inset: 0,
+                    background: "linear-gradient(90deg, rgba(0,0,0,0.78) 0%, rgba(5,5,5,0.72) 100%)",
+                    backdropFilter: "blur(2px)",
+                }} />
 
-                {/* ── Desktop: Nav links ──────────────────────────────────── */}
-                <div className="relative z-10 hidden md:flex items-center gap-8 font-black">
+                {/* ── Brand ── */}
+                <div style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center" }}>
+                    <Link
+                        href="/"
+                        style={{
+                            display: "flex", alignItems: "center", gap: "10px",
+                            textDecoration: "none", color: "#fff",
+                        }}
+                    >
+                        <div style={{ filter: "drop-shadow(0 2px 10px rgba(234,179,8,0.35))" }}>
+                            <Image
+                                src={LOGO_SRC}
+                                alt="BittXS logo"
+                                width={108}
+                                height={90}
+                                priority
+                            />
+                        </div>
+                        <span style={{
+                            fontSize: "18px", fontWeight: 800, letterSpacing: "0.08em",
+                            background: "linear-gradient(135deg, #fff 40%, #EAB308 100%)",
+                            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                            backgroundClip: "text",
+                        }}>
+                            BittXS
+                        </span>
+                    </Link>
+                </div>
+
+                {/* ── Desktop: Nav links ── */}
+                <div style={{
+                    position: "relative", zIndex: 10,
+                    display: "none",
+                    alignItems: "center", gap: "32px",
+                }}
+                    className="nav-desktop-links"
+                >
                     {NAV_LINKS.map(({ href, label }) => (
-                        <Link
-                            key={href}
-                            href={href}
-                            className="hover:text-yellow-400 transition-colors duration-200"
-                        >
-                            {label}
-                        </Link>
+                        <NavLink key={href} href={href} label={label} />
                     ))}
                 </div>
 
-                {/* ── Desktop: Auth ───────────────────────────────────────── */}
-                <div className="relative z-10 hidden md:flex items-center gap-4 font-black">
+                {/* ── Desktop: Auth ── */}
+                <div style={{
+                    position: "relative", zIndex: 10,
+                    display: "none", alignItems: "center", gap: "12px",
+                }}
+                    className="nav-desktop-auth"
+                >
                     <DesktopAuth
                         isRegularUser={isRegularUser}
                         isAdmin={isAdmin}
@@ -389,74 +652,152 @@ export default function Navbar() {
                     />
                 </div>
 
-                {/* ── Mobile: Brand ───────────────────────────────────────── */}
-                <div className="relative z-10 flex md:hidden font-black text-lg tracking-wide">
-                    <Link href="/" className="hover:text-yellow-400 transition-colors">
-                        CrypTo Mining
-                    </Link>
-                </div>
-
-                {/* ── Mobile: Hamburger ───────────────────────────────────── */}
+                {/* ── Mobile: Hamburger ── */}
                 <button
                     onClick={toggleDrawer}
                     aria-label={isOpen ? "Close menu" : "Open menu"}
                     aria-expanded={isOpen}
                     aria-controls="mobile-drawer"
-                    className="relative z-10 flex md:hidden flex-col justify-center items-center w-10 h-10 gap-1.5 rounded-md hover:bg-white/10 transition-colors"
+                    className="nav-mobile-hamburger"
+                    style={{
+                        position: "relative", zIndex: 10,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        width: "38px", height: "38px", borderRadius: "9px",
+                        background: "rgba(255,255,255,0.06)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        color: "#fff", cursor: "pointer",
+                        transition: "background 0.2s, border-color 0.2s",
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.background = "rgba(234,179,8,0.12)";
+                        e.currentTarget.style.borderColor = "rgba(234,179,8,0.3)";
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
+                    }}
                 >
-                    <span aria-hidden="true" className={`block w-6 h-0.5 bg-white rounded transition-all duration-300 ${isOpen ? "rotate-45 translate-y-2" : ""}`} />
-                    <span aria-hidden="true" className={`block w-6 h-0.5 bg-white rounded transition-all duration-300 ${isOpen ? "opacity-0 scale-x-0" : ""}`} />
-                    <span aria-hidden="true" className={`block w-6 h-0.5 bg-white rounded transition-all duration-300 ${isOpen ? "-rotate-45 -translate-y-2" : ""}`} />
+                    <IconMenu open={isOpen} />
                 </button>
+
+                {/* Responsive CSS */}
+                <style>{`
+                    @media (min-width: 768px) {
+                        .nav-desktop-links { display: flex !important; }
+                        .nav-desktop-auth  { display: flex !important; }
+                        .nav-mobile-hamburger { display: none !important; }
+                        nav { padding: 0 40px !important; }
+                    }
+                `}</style>
             </nav>
 
-            {/* ── Mobile: Backdrop ─────────────────────────────────────────── */}
+            {/* ── Mobile: Backdrop ── */}
             <div
                 aria-hidden="true"
                 onClick={closeDrawer}
-                className={`fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity duration-300
-                    ${isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+                style={{
+                    position: "fixed", inset: 0,
+                    background: "rgba(0,0,0,0.6)",
+                    backdropFilter: "blur(4px)",
+                    zIndex: 40,
+                    transition: "opacity 0.3s ease",
+                    opacity: isOpen ? 1 : 0,
+                    pointerEvents: isOpen ? "auto" : "none",
+                }}
             />
 
-            {/* ── Mobile: Slide-in drawer ──────────────────────────────────── */}
+            {/* ── Mobile: Slide-in drawer ── */}
             <div
                 id="mobile-drawer"
                 role="dialog"
                 aria-modal="true"
                 aria-label="Mobile navigation menu"
-                className={`fixed top-0 right-0 h-full w-72 max-w-[85vw] bg-zinc-900 z-50 md:hidden
-                    flex flex-col shadow-2xl transition-transform duration-300 ease-in-out
-                    ${isOpen ? "translate-x-0" : "translate-x-full"}`}
+                style={{
+                    position: "fixed", top: 0, right: 0,
+                    height: "100%", width: "300px", maxWidth: "88vw",
+                    background: "rgba(8, 8, 8, 0.98)",
+                    backdropFilter: "blur(20px)",
+                    borderLeft: "1px solid rgba(255,255,255,0.07)",
+                    zIndex: 50,
+                    display: "flex", flexDirection: "column",
+                    boxShadow: "-20px 0 60px rgba(0,0,0,0.6)",
+                    transition: "transform 0.32s cubic-bezier(0.32, 0.72, 0, 1)",
+                    transform: isOpen ? "translateX(0)" : "translateX(100%)",
+                }}
             >
-                <div className="flex items-center justify-between px-6 h-20 border-b border-white/10">
-                    <span className="text-white font-black text-lg">Menu</span>
+                {/* Drawer header */}
+                <div style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "0 20px", height: "68px",
+                    borderBottom: "1px solid rgba(255,255,255,0.06)",
+                }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{
+                            fontSize: "15px", fontWeight: 800,
+                            letterSpacing: "0.08em",
+                            background: "linear-gradient(135deg, #fff 40%, #EAB308 100%)",
+                            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                            backgroundClip: "text",
+                        }}>
+                            BittXS
+                        </span>
+                    </div>
                     <button
                         onClick={closeDrawer}
                         aria-label="Close menu"
-                        className="text-white hover:text-yellow-400 transition-colors"
+                        style={{
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            width: "34px", height: "34px", borderRadius: "8px",
+                            background: "rgba(255,255,255,0.06)",
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            color: "rgba(255,255,255,0.7)", cursor: "pointer",
+                            transition: "background 0.15s, color 0.15s",
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.background = "rgba(239,68,68,0.12)";
+                            e.currentTarget.style.color = "#f87171";
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                            e.currentTarget.style.color = "rgba(255,255,255,0.7)";
+                        }}
                     >
                         <IconClose />
                     </button>
                 </div>
 
                 {/* Nav links */}
-                <nav aria-label="Mobile navigation links" className="flex flex-col px-4 py-4 gap-1">
+                <nav aria-label="Mobile navigation links" style={{ padding: "16px 12px 8px" }}>
+                    <p style={{
+                        fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em",
+                        color: "rgba(255,255,255,0.3)", textTransform: "uppercase",
+                        padding: "0 14px", marginBottom: "6px",
+                    }}>
+                        Navigation
+                    </p>
                     {NAV_LINKS.map(({ href, label }) => (
                         <Link
                             key={href}
                             href={href}
                             onClick={closeDrawer}
-                            className="text-white font-semibold px-3 py-3 rounded-lg hover:bg-yellow-500 hover:text-black transition-colors duration-200"
+                            className="nav-mobile-link"
                         >
                             {label}
                         </Link>
                     ))}
                 </nav>
 
-                <hr className="border-white/10 mx-4" />
+                <div style={{ height: "1px", background: "rgba(255,255,255,0.05)", margin: "4px 12px" }} />
 
-                {/* Mobile auth */}
-                <div className="flex flex-col px-4 py-4 gap-1">
+                {/* Auth section */}
+                <div style={{ padding: "12px 12px", flex: 1 }}>
+                    <p style={{
+                        fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em",
+                        color: "rgba(255,255,255,0.3)", textTransform: "uppercase",
+                        padding: "0 14px", marginBottom: "8px",
+                    }}>
+                        Account
+                    </p>
                     <MobileAuth
                         isRegularUser={isRegularUser}
                         isAdmin={isAdmin}
@@ -464,6 +805,16 @@ export default function Navbar() {
                         onClose={closeDrawer}
                         onLogout={handleLogout}
                     />
+                </div>
+
+                {/* Drawer footer */}
+                <div style={{
+                    padding: "16px 20px",
+                    borderTop: "1px solid rgba(255,255,255,0.05)",
+                }}>
+                    <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.2)", margin: 0, letterSpacing: "0.02em" }}>
+                        © {new Date().getFullYear()} BittXS. All rights reserved.
+                    </p>
                 </div>
             </div>
         </>
