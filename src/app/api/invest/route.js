@@ -184,9 +184,10 @@ export async function GET(req) {
 
         await connectDB();
 
-        const investments = await Investment.find({ user: userId })
+        const investments = await Investment.find({ user: userId, status: "active" })
             .sort({ createdAt: -1 })
             .limit(100)
+            .select("minerName amount dailyProfit totalProfit totalReturn startDate maturityDate claimedProfit")
             .lean();
 
         console.info("/api/invest GET fetched", { user: userId, count: investments.length });

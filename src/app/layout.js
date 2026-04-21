@@ -12,6 +12,11 @@ const geistMono = JetBrains_Mono({ variable: "--font-geist-mono", subsets: ["lat
 export const metadata = {
   title: "Mining Platform",
   description: "Modern crypto mining platform",
+  icons: {
+    icon: "/LogoWeb.png",
+    shortcut: "/LogoWeb.png",
+    apple: "/LogoWeb.png",
+  },
 };
 
 export default function RootLayout({ children }) {
