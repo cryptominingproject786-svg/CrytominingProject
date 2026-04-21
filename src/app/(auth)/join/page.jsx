@@ -310,7 +310,7 @@ export default function JoinPage() {
             💰
           </div>
           <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-yellow-500/50">
-            Secure Access to BitXXS
+            Secure Access to BittXS
           </p>
         </div>
 
