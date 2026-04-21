@@ -20,8 +20,10 @@ const InvestmentCard = ({ inv, onClaim, nowTime }) => {
     const passedSeconds = Math.max(0, (now - start) / 1000);
     const percent = Math.min(100, Math.round((passedSeconds / totalSeconds) * 100));
 
+    const status = inv.status ?? "active";
+
     // ── Is this investment ready to claim? ────────────────────────────────────
-    const isMatured = !Number.isNaN(end.getTime()) && now >= end && inv.status === "active";
+    const isMatured = !Number.isNaN(end.getTime()) && now >= end && status === "active";
 
     const statusColor =
         inv.status === "active"
