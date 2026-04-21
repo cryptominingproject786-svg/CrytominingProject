@@ -181,7 +181,7 @@ export default function RechargeClient({ network = "TRC20" }) {
                                 </li>
                                 <li>
                                     Minimum recharge:{" "}
-                                    <span className="font-semibold">2 USDT</span>
+                                    <span className="font-semibold">50 USDT</span>
                                 </li>
                                 <li>
                                     Funds arrive within{" "}
