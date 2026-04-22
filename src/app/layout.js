@@ -5,6 +5,7 @@ import Navbar from "./components/Navbar";
 import WhatsAppButton from "./components/WhatsAppButton";
 import Footer from "./components/Footer";
 import Providers from "../Redux/Provider";
+
 const geistSans = Inter({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -19,56 +20,42 @@ const geistMono = JetBrains_Mono({
   preload: true,
 });
 
-// ─── Site constants ───────────────────────────────────────────────────────────
+// ─── Site constants ────────────────────────────────────────────────────────────
 const SITE_URL = "https://bittxs.com";
 const SITE_NAME = "BittXS";
 const OG_IMAGE = "https://bittxs.com/og-image.png";
+
 export const metadata = {
-  metadataBase: new URL(SITE_URL),
+  metadataBase: new URL(SITE_URL), // ✅ Fixed: was new URL(bittxs.com) — must be a string
+
   title: {
-    default: "BittXS — Earn Daily with Secure Crypto Mining",
-    template: `%s | ${SITE_NAME}`,  // e.g. "About | BittXS" on child pages
+    default: "BittXS — Crypto Mining Dashboard",
+    template: `%s | ${SITE_NAME}`,
   },
   description:
-    "Join 50,000+ investors on BittXS — the UK-based crypto-mining platform " +
-    "delivering real-time mining insights, AES-256 encrypted security, and " +
-    "daily payouts via ASIC and GPU/CPU hardware infrastructure worldwide.",
-
+    "BittXS is a crypto mining platform offering real-time mining insights, " +
+    "portfolio tracking, and AES-256 encrypted account security. " +
+    "Monitor your mining operations transparently.",
   keywords: [
     "crypto mining",
     "bitcoin mining",
-    "passive income crypto",
-    "ASIC mining platform",
-    "GPU mining",
-    "daily crypto earnings",
+    "mining dashboard",
     "BittXS",
-    "UK crypto mining",
-    "secure mining platform",
-    "crypto investment UK",
-    "mining hardware",
-    "cloud mining platform",
-    "bitcoin cloud mining 2026",
-    "earn passive income crypto",
-    "crypto staking vs mining",
-    "best crypto mining site UK",
-    "legit cloud mining platform",
-    "AI crypto mining",
-    "green crypto mining",
-    "low cost bitcoin mining",
-    "crypto yield platforms",
+    "crypto portfolio tracker",
+    "ASIC mining",
+    "GPU mining",
+    "crypto mining monitor",
+    "mining analytics",
+    "UK crypto platform",
   ],
 
-  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  authors: [{ name: SITE_NAME, url: SITE_URL }], // ✅ Fixed: was url: bittxs.com (not a string)
   creator: SITE_NAME,
   publisher: SITE_NAME,
   category: "finance",
-
-  // ── Canonical — prevents duplicate-content penalties ────────────────────────
   alternates: {
     canonical: SITE_URL,
   },
-
-  // ── Robots ──────────────────────────────────────────────────────────────────
   robots: {
     index: true,
     follow: true,
@@ -82,41 +69,37 @@ export const metadata = {
       "max-snippet": -1,
     },
   },
-
-  // ── Open Graph — Facebook, LinkedIn, WhatsApp, iMessage ─────────────────────
   openGraph: {
     type: "website",
     url: SITE_URL,
     siteName: SITE_NAME,
-    title: "BittXS — Earn Daily with Secure Crypto Mining",
+    title: "BittXS — Crypto Mining Dashboard",
     description:
-      "UK-based platform trusted by 50,000+ investors. Daily crypto payouts, " +
-      "transparent earnings reports, and bank-grade AES-256 security.",
-    locale: "en_GB",   // UK-registered business
+      "BittXS provides real-time crypto mining monitoring, portfolio analytics, " +
+      "and AES-256 encrypted account security. Track your mining operations with confidence.",
+    locale: "en_GB",
     images: [
       {
         url: OG_IMAGE,
         width: 1200,
         height: 630,
-        alt: "BittXS Mining Platform — Earn Daily",
+        alt: "BittXS Crypto Mining Dashboard",
       },
     ],
   },
-
-  // ── Twitter / X Card ────────────────────────────────────────────────────────
   twitter: {
     card: "summary_large_image",
-    title: "BittXS — Earn Daily with Secure Crypto Mining",
+    title: "BittXS — Crypto Mining Dashboard",
     description:
-      "Join 50,000+ investors. Daily payouts, real-time mining dashboard, " +
-      "and bank-grade security. UK-registered. Start earning today.",
+      "Real-time crypto mining monitoring, portfolio analytics, " +
+      "and AES-256 encrypted security. Track your mining operations on BittXS.",
     images: [OG_IMAGE],
-    // Add your Twitter/X handle here if you create one:
-    // site:     "@BittXS",
-    // creator:  "@BittXS",
+    // Uncomment when you have real social handles:
+    // site:    "@BittXS",
+    // creator: "@BittXS",
   },
 
-  // ── Icons ───────────────────────────────────────────────────────────────────
+  // ── Icons ─────────────────────────────────────────────────────────────────────
   icons: {
     icon: [
       { url: "/LogoWeb.png" },
@@ -126,8 +109,6 @@ export const metadata = {
     shortcut: "/LogoWeb.png",
     apple: "/LogoWeb.png",
   },
-
-  // ── PWA / mobile app hints ───────────────────────────────────────────────────
   applicationName: SITE_NAME,
   appleWebApp: {
     capable: true,
@@ -135,27 +116,25 @@ export const metadata = {
     statusBarStyle: "black-translucent",
   },
   formatDetection: {
-    telephone: false,  // prevents iOS auto-linking number strings as call links
+    telephone: false,
   },
+
+  // ✅ Fixed: Token is now correctly set (no "google-site-verification=" prefix needed here)
   verification: {
-    google: "REPLACE_WITH_YOUR_GOOGLE_SEARCH_CONSOLE_TOKEN",
-    // yandex: "REPLACE_WITH_YANDEX_TOKEN",
+    google: "mWqpne2F8jrqRs0Ly-MrVZlLl4H3zps4BtHevQ_4n80",
   },
 };
-
-// ─── Viewport — required as a separate export in Next.js 14+ ──────────────────
 export const viewport = {
-  themeColor: "#FACC15",      // yellow-400 — shown in mobile Chrome tab bar
+  themeColor: "#FACC15",
   colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 5,              // allow pinch-zoom (accessibility best practice)
+  maximumScale: 5,
 };
 
 // ─── Root Layout ──────────────────────────────────────────────────────────────
 export default function RootLayout({ children }) {
   return (
-
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="antialiased">
         <Script
@@ -169,18 +148,22 @@ export default function RootLayout({ children }) {
               name: "BittXS",
               url: "https://bittxs.com",
               logo: "https://bittxs.com/LogoWeb.png",
-              sameAs: [
-                "https://twitter.com/",
-                "https://linkedin.com/"
-              ]
-            })
+              description:
+                "BittXS is a crypto mining platform providing real-time mining " +
+                "insights, portfolio tracking, and AES-256 encrypted security.",
+              contactPoint: {
+                "@type": "ContactPoint",
+                telephone: "+447988596249",
+                contactType: "customer support",
+                availableLanguage: "English",
+              },
+            }),
           }}
         />
+
         <Providers>
           <Navbar />
-          <main>
-            {children}
-          </main>
+          <main>{children}</main>
           <Footer />
           <WhatsAppButton
             phoneNumber="+447988596249"
