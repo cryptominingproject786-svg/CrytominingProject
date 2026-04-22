@@ -1,6 +1,6 @@
 ﻿import dynamic from "next/dynamic";
 
-const HomeClient = dynamic(() => import("./HomeClient"), {
+const HomeClient = dynamic(() => import("./components/HomeClient"), {
   ssr: true,
 });
 

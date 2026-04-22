@@ -37,7 +37,7 @@ const CardSkeleton = () => (
     />
 );
 
-const MiningCard = dynamic(() => import("./components/MiningCard"), {
+const MiningCard = dynamic(() => import("./MiningCard"), {
     loading: () => <CardSkeleton />,
 });
 
