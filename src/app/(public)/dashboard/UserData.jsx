@@ -47,11 +47,22 @@ const ActionCard = React.memo(function ActionCard({ icon, label, color, onClick 
             ? "text-white"
             : "text-black";
 
+    const handleKeyDown = (event) => {
+        if (!onClick) return;
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onClick();
+        }
+    };
+
     return (
         <article
             onClick={onClick}
+            onKeyDown={handleKeyDown}
+            role={onClick ? "button" : undefined}
+            tabIndex={onClick ? 0 : undefined}
             aria-label={label}
-            className={`relative ${color} rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center ${textColor} font-bold cursor-pointer shadow-xl hover:shadow-2xl hover:-translate-y-2 transform transition-all duration-500`}
+            className={`relative ${color} rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center ${textColor} font-bold cursor-pointer shadow-xl hover:shadow-2xl hover:-translate-y-2 transform transition-all duration-500 focus:outline-none focus:ring-2 focus:ring-yellow-400/70 focus:ring-offset-2 focus:ring-offset-slate-950`}
         >
             {/* aria-hidden keeps decorative emojis out of the accessibility tree */}
             <span
@@ -265,6 +276,7 @@ function UserData() {
                 icon: "🏢",
                 label: "Company Profile",
                 color: "bg-gradient-to-tr from-gray-800 to-gray-900",
+                onClick: () => router.push("/dashboard/CompanyProfile"),
             },
             {
                 icon: "👥",
