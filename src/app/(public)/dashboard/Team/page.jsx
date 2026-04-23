@@ -235,8 +235,11 @@ const ReferralNetwork = React.memo(function ReferralNetwork({ data }) {
     const handleCopyReferral = useCallback(async () => {
         if (!referralCode) return;
 
+        const appOrigin = process.env.NEXT_PUBLIC_NEXTAUTH_URL || window.location.origin;
+        const referralUrl = `${String(appOrigin).replace(/\/$/, "")}/signup?referral=${encodeURIComponent(referralCode)}`;
+
         try {
-            await navigator.clipboard.writeText(referralCode);
+            await navigator.clipboard.writeText(referralUrl);
             setCopyState("copied");
         } catch {
             setCopyState("error");
@@ -321,7 +324,7 @@ const ReferralNetwork = React.memo(function ReferralNetwork({ data }) {
                     <p className="mt-2 text-sm text-slate-400 max-w-xl leading-relaxed">
                         Nodes turn{" "}
                         <span className="text-emerald-400 font-semibold">green</span> when a
-                        referral completes their first investment. Share your referral code
+                        referral completes their first investment. Share your referral link
                         to earn automatic rewards.
                     </p>
                     <Legend />
@@ -343,7 +346,7 @@ const ReferralNetwork = React.memo(function ReferralNetwork({ data }) {
                                     <button
                                         type="button"
                                         onClick={handleCopyReferral}
-                                        aria-label={isCopied ? "Referral code copied" : isError ? "Copy failed — try selecting manually" : "Copy referral code"}
+                                        aria-label={isCopied ? "Referral link copied" : isError ? "Copy failed — try selecting manually" : "Copy referral link"}
                                         className={[
                                             "inline-flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-200",
                                             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900",
