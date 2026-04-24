@@ -1,17 +1,4 @@
 "use client";
-
-/**
- * adminclient.jsx
- * ─────────────────────────────────────────────────────────────────────────────
- * Admin dashboard — recharges + platform stats.
- * • Module-level cache per endpoint (60 s TTL)
- * • useReducer for all async state → single dispatch path, zero stale closures
- * • memo + useCallback + useMemo → zero unnecessary re-renders
- * • Matches withdrawcard.jsx visual language exactly
- * • Fully responsive (1 → 2 → 4 column grid)
- * • Semantic HTML / ARIA / Schema.org for SEO
- */
-
 import React, {
     useReducer,
     useEffect,

@@ -54,4 +54,7 @@ ReferralBonusSchema.index(
     }
 );
 
+// Store recent referral bonus lookups efficiently by parent + award date
+ReferralBonusSchema.index({ parent: 1, awardedAt: -1 });
+
 export default mongoose.models.ReferralBonus || mongoose.model("ReferralBonus", ReferralBonusSchema);

@@ -1,394 +1,623 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 
-/* ─────────────────────────────────────────────
-   StatCard
-───────────────────────────────────────────── */
-const StatCard = React.memo(function StatCard({ label, value }) {
-    return (
-        <article className="group relative rounded-3xl bg-slate-900/80 border border-slate-800 p-6 shadow-2xl hover:shadow-yellow-500/20 transition duration-300">
-            <div
-                className="absolute inset-0 rounded-3xl bg-yellow-400/10 opacity-0 group-hover:opacity-100 blur-xl transition"
-                aria-hidden="true"
-            />
-            <div className="relative z-10">
-                <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
-                <h3 className="mt-3 text-3xl font-extrabold text-white">{value}</h3>
-            </div>
-        </article>
-    );
-});
+/* ─────────────────────────────────────────────────────────────────────────────
+   CONSTANTS
+───────────────────────────────────────────────────────────────────────────── */
 
-/* ─────────────────────────────────────────────
-   Node status constants
-───────────────────────────────────────────── */
-const STATUS = {
+const STATUS = Object.freeze({
     ROOT: "root",
     QUALIFIED: "qualified",
     PENDING: "pending",
     ZERO: "zero",
     GHOST: "ghost",
-    EMPTY: "empty",
+});
+
+/** Max slots per pyramid level (index = level number) */
+const LEVEL_CAPACITY = [1, 2, 4, 8, 16, 32];
+
+const COPY_STATE = Object.freeze({
+    IDLE: "idle",
+    COPIED: "copied",
+    ERROR: "error",
+});
+
+const COPY_RESET_MS = 2200;
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   UTILITY HOOKS
+───────────────────────────────────────────────────────────────────────────── */
+
+function useCopyLink(url) {
+    const [state, setState] = useState(COPY_STATE.IDLE);
+    const timerRef = useRef(null);
+
+    const scheduleReset = useCallback(() => {
+        window.clearTimeout(timerRef.current);
+        timerRef.current = window.setTimeout(
+            () => setState(COPY_STATE.IDLE),
+            COPY_RESET_MS,
+        );
+    }, []);
+
+    const copy = useCallback(async () => {
+        if (!url) return;
+        try {
+            await navigator.clipboard.writeText(url);
+            setState(COPY_STATE.COPIED);
+        } catch {
+            setState(COPY_STATE.ERROR);
+        } finally {
+            scheduleReset();
+        }
+    }, [url, scheduleReset]);
+
+    useEffect(() => () => window.clearTimeout(timerRef.current), []);
+
+    return { copyState: state, copy };
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   UTILITY FUNCTIONS
+───────────────────────────────────────────────────────────────────────────── */
+
+function buildLevelNodes(filledCount, capacity, qualifiedCount = 0) {
+    return Array.from({ length: capacity }, (_, i) => {
+        if (i >= filledCount) return { status: STATUS.GHOST };
+        if (i < qualifiedCount) return { status: STATUS.QUALIFIED, showCheck: true };
+        return { status: STATUS.PENDING };
+    });
+}
+
+function distributeLevels(directCount, totalTeam) {
+    const l1 = Math.min(LEVEL_CAPACITY[1], directCount);
+    let remaining = Math.max(0, totalTeam - l1);
+
+    return LEVEL_CAPACITY.slice(2).reduce(
+        (acc, cap) => {
+            const filled = Math.min(cap, remaining);
+            remaining -= filled;
+            acc.push(filled);
+            return acc;
+        },
+        [l1],
+    );
+}
+
+function buildReferralUrl(code) {
+    if (!code) return null;
+    const origin =
+        (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_NEXTAUTH_URL) ||
+        (typeof window !== "undefined" ? window.location.origin : "");
+    return `${origin.replace(/\/$/, "")}/signup?referral=${encodeURIComponent(code)}`;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SVG ICONS
+───────────────────────────────────────────────────────────────────────────── */
+
+const BASE_SVG = {
+    "aria-hidden": true,
+    fill: "none",
+    stroke: "currentColor",
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
 };
 
-/* ─────────────────────────────────────────────
-   PersonIcon — inline SVG silhouette
-───────────────────────────────────────────── */
-function PersonIcon({ color = "currentColor", size = 22 }) {
+function IconPerson({ size = 22, color = "currentColor" }) {
     return (
-        <svg
-            aria-hidden="true"
-            width={size}
-            height={size}
-            viewBox="0 0 24 24"
-            fill={color}
-            xmlns="http://www.w3.org/2000/svg"
-        >
+        <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true">
             <circle cx="12" cy="7" r="4" />
             <path d="M4 20c0-4 3.582-7 8-7s8 3 8 7" />
         </svg>
     );
 }
+function IconLink({ size = 17 }) {
+    return (
+        <svg {...BASE_SVG} width={size} height={size} viewBox="0 0 24 24" strokeWidth="2">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+        </svg>
+    );
+}
+function IconCopy({ size = 14 }) {
+    return (
+        <svg {...BASE_SVG} width={size} height={size} viewBox="0 0 24 24" strokeWidth="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+    );
+}
+function IconCheck({ size = 14, strokeWidth = 2.5 }) {
+    return (
+        <svg {...BASE_SVG} width={size} height={size} viewBox="0 0 24 24" strokeWidth={strokeWidth}>
+            <polyline points="20 6 9 17 4 12" />
+        </svg>
+    );
+}
+function IconGlobe({ size = 13 }) {
+    return (
+        <svg {...BASE_SVG} width={size} height={size} viewBox="0 0 24 24" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+        </svg>
+    );
+}
+function IconUsers({ size = 20 }) {
+    return (
+        <svg {...BASE_SVG} width={size} height={size} viewBox="0 0 24 24" strokeWidth="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+    );
+}
+function IconShield({ size = 20 }) {
+    return (
+        <svg {...BASE_SVG} width={size} height={size} viewBox="0 0 24 24" strokeWidth="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            <polyline points="9 12 11 14 15 10" />
+        </svg>
+    );
+}
+function IconDollar({ size = 20 }) {
+    return (
+        <svg {...BASE_SVG} width={size} height={size} viewBox="0 0 24 24" strokeWidth="2">
+            <line x1="12" y1="1" x2="12" y2="23" />
+            <path d="M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 0 0 7H6" />
+        </svg>
+    );
+}
 
-/* ─────────────────────────────────────────────
-   CheckBadge — small green check overlay
-───────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────────
+   NODE COLOUR MAP
+───────────────────────────────────────────────────────────────────────────── */
+
+const NODE_CLS = {
+    [STATUS.ROOT]: "bg-amber-600   border-amber-500   shadow-lg shadow-amber-500/25",
+    [STATUS.QUALIFIED]: "bg-emerald-600 border-emerald-500 shadow-lg shadow-emerald-500/30",
+    [STATUS.PENDING]: "bg-white       border-slate-300   shadow-sm",
+    [STATUS.ZERO]: "bg-red-600     border-red-500     shadow-lg shadow-red-500/30",
+    [STATUS.GHOST]: "bg-slate-900   border-slate-700   border-dashed",
+};
+
+const NODE_ICON_COLOR = {
+    [STATUS.ROOT]: "#fff",
+    [STATUS.QUALIFIED]: "#fff",
+    [STATUS.ZERO]: "#fff",
+    [STATUS.PENDING]: "#0f172a",
+    [STATUS.GHOST]: "#475569",
+};
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CHECK BADGE
+───────────────────────────────────────────────────────────────────────────── */
+
 function CheckBadge() {
     return (
         <span
             aria-label="Qualified"
-            className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/40 border border-slate-950"
+            className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 border border-slate-950 shadow-lg shadow-emerald-500/40"
         >
-            <svg
-                aria-hidden="true"
-                width="10"
-                height="10"
-                viewBox="0 0 12 12"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-            >
-                <path
-                    d="M2 6.5l3 3 5-5"
-                    stroke="#fff"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                />
-            </svg>
+            <IconCheck size={10} strokeWidth={2.2} />
         </span>
     );
 }
 
-/* ─────────────────────────────────────────────
-   ReferralNode — single circle node
-   
-   Status colour map:
-   • root      → amber-500  (you)
-   • qualified → emerald-500 (active referral)
-   • pending   → white/slate (joined, no investment yet)
-   • ghost     → slate-700   (slot exists, unfilled — BRIGHTER than before)
-   • empty     → dashed border only (capacity placeholder)
-───────────────────────────────────────────── */
-const NODE_STYLES = {
-    [STATUS.ROOT]: "bg-amber-600 border-amber-500 text-white shadow-lg shadow-amber-500/25",
-    [STATUS.QUALIFIED]: "bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-500/30",
-    [STATUS.PENDING]: "bg-white border-slate-300 text-slate-950 shadow-sm",
-    [STATUS.ZERO]: "bg-red-600 border-red-500 text-white shadow-lg shadow-red-500/30",
-    [STATUS.GHOST]: "bg-slate-900 border-slate-800 text-slate-500 border-dashed",
-    [STATUS.EMPTY]: "bg-slate-950/90 border-slate-800 border-dashed text-slate-500",
-};
+/* ─────────────────────────────────────────────────────────────────────────────
+   REFERRAL NODE
+   Fix: consistent, touch-friendly sizing; removed double-class sm: variants
+   that caused layout shifts; tighter label truncation with explicit maxWidth.
+───────────────────────────────────────────────────────────────────────────── */
 
-const ReferralNode = React.memo(function ReferralNode({
-    status,
-    label,
-    showCheck = false,
-}) {
-    const isVisible = status !== STATUS.EMPTY;
+const ReferralNode = React.memo(function ReferralNode({ status, label, showCheck = false }) {
     const isGhost = status === STATUS.GHOST;
 
     return (
-        <div className="flex flex-col items-center gap-1.5">
+        // flex-col + gap: keeps node + label vertically aligned even in wrapping rows
+        <div className="flex flex-col items-center gap-1" style={{ minWidth: 0 }}>
             <div
-                className={`
-          relative flex h-14 w-14 items-center justify-center
-          rounded-full border-2 transition-all duration-500
-          ${NODE_STYLES[status] ?? NODE_STYLES[STATUS.EMPTY]}
-        `}
+                className={[
+                    // 44 px min touch-target on mobile (Apple HIG / WCAG 2.5.5)
+                    "relative flex items-center justify-center",
+                    "h-11 w-11 sm:h-12 sm:w-12",
+                    "rounded-full border-2 transition-all duration-300 flex-shrink-0",
+                    NODE_CLS[status] ?? NODE_CLS[STATUS.GHOST],
+                ].join(" ")}
             >
-                {isVisible && (
-                    <PersonIcon
-                        color={
-                            status === STATUS.ROOT || status === STATUS.QUALIFIED || status === STATUS.ZERO
-                                ? "#ffffff"
-                                : status === STATUS.PENDING
-                                    ? "#0f172a"
-                                    : status === STATUS.GHOST
-                                        ? "#94a3b8"
-                                        : "#64748b"
-                        }
-                        size={22}
-                    />
-                )}
+                <IconPerson
+                    color={NODE_ICON_COLOR[status] ?? "#475569"}
+                    size={16}
+                />
                 {showCheck && <CheckBadge />}
             </div>
 
-            {label ? (
-                <p className="max-w-[72px] truncate text-center text-[11px] text-slate-400 leading-tight">
-                    {label}
-                </p>
-            ) : isGhost ? (
-                /* Ghost slot hint — helps users understand open positions */
-                <p className="text-[10px] text-slate-600 leading-tight">open</p>
-            ) : null}
+            {/* Label: clamp to 52 px so nodes don't widen in wrapped rows */}
+            <p
+                className="text-[9px] text-slate-400 leading-tight text-center truncate"
+                style={{ maxWidth: 52 }}
+            >
+                {label || (isGhost ? "open" : "")}
+            </p>
         </div>
     );
 });
 
-/* ─────────────────────────────────────────────
-   ReferralRow — one level of the pyramid
-───────────────────────────────────────────── */
-const ReferralRow = React.memo(function ReferralRow({
-    title,
-    filled,
-    capacity,
-    nodes,
-}) {
+/* ─────────────────────────────────────────────────────────────────────────────
+   PYRAMID ROW
+   Fix: On very wide levels (L4 = 16 nodes, L5 = 32 nodes) a flex-wrap layout
+   overflows on mobile. We cap visible nodes per row to keep things readable
+   and add a "+N more" badge for the rest. The label column is narrowed on
+   mobile with a fixed pixel width so the node area gets the most space.
+───────────────────────────────────────────────────────────────────────────── */
+
+/** Max nodes to render on mobile before collapsing to "+N more" */
+const MOBILE_NODE_LIMIT = 8;
+
+function PyramidRow({ title, filled, capacity, nodes }) {
+    // Detect mobile via window width (SSR-safe: default to false / show all)
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const mq = window.matchMedia("(max-width: 639px)");
+        const handler = (e) => setIsMobile(e.matches);
+        setIsMobile(mq.matches);
+        mq.addEventListener("change", handler);
+        return () => mq.removeEventListener("change", handler);
+    }, []);
+
+    const visibleNodes = isMobile && nodes.length > MOBILE_NODE_LIMIT
+        ? nodes.slice(0, MOBILE_NODE_LIMIT)
+        : nodes;
+    const hiddenCount = nodes.length - visibleNodes.length;
+
     return (
-        <div className="grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)] items-center">
-            {/* Level label */}
-            <div>
-                <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500 font-semibold">
+        // Two-column grid: fixed label col | flexible node area
+        // Using inline style for the label column width so it can be px-precise
+        <div className="flex items-start gap-3 sm:gap-4 py-4">
+            {/* Label column — fixed, won't shrink */}
+            <div className="flex-shrink-0 w-16 sm:w-32 pt-1">
+                <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-slate-500 font-semibold leading-snug">
                     {title}
                 </p>
-                <p className="mt-1 text-sm font-semibold text-white tabular-nums">
+                <p className="mt-1 text-xs sm:text-sm font-bold text-white tabular-nums">
                     {filled}
-                    <span className="text-slate-600">/{capacity}</span>
+                    <span className="font-normal text-slate-600">/{capacity}</span>
                 </p>
             </div>
 
-            {/* Nodes — wrap on mobile */}
-            <div className="flex flex-wrap gap-3">
-                {nodes.map((node, idx) => (
-                    <ReferralNode key={`${title}-${idx}`} {...node} />
+            {/* Node area — wraps freely, no overflow */}
+            <div className="flex-1 min-w-0 flex flex-wrap gap-2">
+                {visibleNodes.map((node, idx) => (
+                    <ReferralNode key={idx} {...node} />
                 ))}
+                {hiddenCount > 0 && (
+                    <div className="flex items-center justify-center h-11 w-11 rounded-full border-2 border-dashed border-slate-700 bg-slate-900 flex-shrink-0">
+                        <span className="text-[9px] font-semibold text-slate-500">+{hiddenCount}</span>
+                    </div>
+                )}
             </div>
         </div>
     );
-});
-
-/* ─────────────────────────────────────────────
-   buildNodes — helper to fill a row
-───────────────────────────────────────────── */
-function buildNodes(count, capacity, filledStatus, qualifiedUpTo = 0) {
-    return Array.from({ length: capacity }, (_, idx) => {
-        if (idx >= count) {
-            return { status: STATUS.GHOST };
-        }
-        const isQualified = idx < qualifiedUpTo;
-        return {
-            status: isQualified ? STATUS.QUALIFIED : filledStatus,
-            showCheck: isQualified,
-        };
-    });
 }
 
-/* ─────────────────────────────────────────────
-   Legend — explains the colour coding
-───────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────────
+   LEGEND
+───────────────────────────────────────────────────────────────────────────── */
+
+const LEGEND_ITEMS = [
+    { cls: "bg-amber-600   border-amber-500", label: "You (root)" },
+    { cls: "bg-emerald-600 border-emerald-500", label: "Invested" },
+    { cls: "bg-white       border-slate-300", label: "Signed up" },
+    { cls: "bg-red-600     border-red-500", label: "Zero balance" },
+    { cls: "bg-slate-900   border-slate-700 border-dashed", label: "Open slot" },
+];
+
 function Legend() {
-    const items = [
-        { cls: "bg-amber-600 border-amber-500", label: "You (root)" },
-        { cls: "bg-emerald-600 border-emerald-500", label: "Invested" },
-        { cls: "bg-white border-slate-300", label: "Referred sign-up" },
-        { cls: "bg-red-600 border-red-500", label: "Zero balance" },
-        { cls: "bg-slate-900 border-slate-800 border-dashed", label: "Open slot" },
-    ];
     return (
-        <div className="flex flex-wrap gap-4 mt-2">
-            {items.map(({ cls, label }) => (
-                <div key={label} className="flex items-center gap-2">
-                    <span className={`inline-block h-4 w-4 rounded-full border-2 ${cls}`} aria-hidden="true" />
-                    <span className="text-[11px] text-slate-400">{label}</span>
+        // 2-col grid on the narrowest phones so items don't wrap awkwardly
+        <div
+            className="grid grid-cols-2 sm:flex sm:flex-wrap gap-x-4 gap-y-2 mt-3"
+            role="list"
+            aria-label="Node colour legend"
+        >
+            {LEGEND_ITEMS.map(({ cls, label }) => (
+                <div key={label} className="flex items-center gap-1.5 min-w-0" role="listitem">
+                    <span
+                        className={`flex-shrink-0 h-3 w-3 rounded-full border-2 ${cls}`}
+                        aria-hidden="true"
+                    />
+                    <span className="text-[11px] text-slate-400 truncate">{label}</span>
                 </div>
             ))}
         </div>
     );
 }
 
-/* ─────────────────────────────────────────────
-   ReferralNetwork — full pyramid section
-───────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────────
+   STAT CARD
+   Fix: Ensure value never clips. Use word-break so long dollar strings wrap
+   gracefully rather than overflow on narrow cards.
+───────────────────────────────────────────────────────────────────────────── */
+
+function StatCard({ label, value, accent = false, Icon }) {
+    return (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3 sm:p-5 flex flex-col gap-2 sm:gap-3">
+            <div className="flex items-center justify-between gap-2">
+                <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-slate-500 font-semibold leading-snug">
+                    {label}
+                </p>
+                {Icon && (
+                    <span
+                        className={`flex-shrink-0 ${accent ? "text-emerald-500" : "text-slate-600"}`}
+                        aria-hidden="true"
+                    >
+                        <Icon size={15} />
+                    </span>
+                )}
+            </div>
+            <p
+                className={[
+                    "text-lg sm:text-2xl font-extrabold tabular-nums leading-none break-all",
+                    accent ? "text-emerald-400" : "text-white",
+                ].join(" ")}
+            >
+                {value}
+            </p>
+        </div>
+    );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   REFERRAL LINK CARD
+   Fixes:
+   - URL pill: overflow-hidden + text-ellipsis prevents URL from blowing layout
+   - Button: full-width at all breakpoints; icon and text never wrap separately
+   - Referral code badge: shrinks with truncation, won't push heading off-screen
+───────────────────────────────────────────────────────────────────────────── */
+
+function ReferralLinkCard({ referralCode, referralUrl, copyState, onCopy }) {
+    const isCopied = copyState === COPY_STATE.COPIED;
+    const isError = copyState === COPY_STATE.ERROR;
+    const isActive = Boolean(referralUrl);
+
+    const btnCls = [
+        "w-full inline-flex items-center justify-center gap-2",
+        "min-h-[48px] rounded-xl px-4 text-sm font-semibold",
+        "transition-all duration-200 touch-manipulation",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400",
+        "focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900",
+        isError ? "bg-red-500/90 text-white" :
+            isCopied ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20" :
+                isActive ? "bg-yellow-400 text-slate-950 hover:bg-yellow-300 active:scale-[0.98] shadow-md shadow-yellow-400/20" :
+                    "bg-slate-800 text-slate-500 cursor-not-allowed opacity-60",
+    ].join(" ");
+
+    return (
+        <div className="w-full rounded-2xl border border-slate-700/50 bg-slate-900 overflow-hidden">
+            {/* Accent stripe */}
+            <div
+                className="h-[3px] w-full bg-gradient-to-r from-yellow-500 via-yellow-300 to-yellow-500"
+                aria-hidden="true"
+            />
+
+            <div className="p-4 sm:p-6 flex flex-col gap-4">
+
+                {/* Icon + title row */}
+                <div className="flex items-start gap-3 min-w-0">
+                    <div
+                        className="flex-shrink-0 mt-0.5 h-8 w-8 flex items-center justify-center rounded-xl bg-yellow-400/10 text-yellow-400 border border-yellow-400/20"
+                        aria-hidden="true"
+                    >
+                        <IconLink size={15} />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                        {/* Title + badge: wrap vertically on tiny phones */}
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <h3 className="text-sm font-bold text-white leading-snug">
+                                Your Referral Link
+                            </h3>
+                            {referralCode && (
+                                <span
+                                    className="inline-flex items-center rounded-md bg-slate-800 border border-slate-700 px-2 py-0.5 text-[10px] font-mono font-semibold text-yellow-300 tracking-widest uppercase select-all"
+                                    style={{ maxWidth: "min(120px, 100%)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                                >
+                                    {referralCode}
+                                </span>
+                            )}
+                        </div>
+                        <p className="mt-1.5 text-[12px] text-slate-400 leading-relaxed">
+                            Share this link to invite friends. Earn rewards when they invest.
+                        </p>
+                    </div>
+                </div>
+
+                {/* URL pill — overflow-hidden + min-w-0 chain prevents layout blow-out */}
+                <div
+                    className="flex items-center gap-2 rounded-xl bg-slate-950 border border-slate-800 px-3 py-3 hover:border-slate-700 transition-colors overflow-hidden"
+                    aria-label="Referral URL"
+                >
+                    <span className="flex-shrink-0 text-slate-500" aria-hidden="true">
+                        <IconGlobe size={13} />
+                    </span>
+                    {/*
+                     * overflow-hidden + text-ellipsis on the <p> itself rather
+                     * than relying solely on `truncate` (which needs a parent with
+                     * overflow:hidden already established — we have that now).
+                     */}
+                    <p
+                        className="flex-1 min-w-0 text-[11px] sm:text-[13px] font-mono text-slate-300 select-all"
+                        style={{
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            direction: "ltr",
+                        }}
+                        title={referralUrl || referralCode || "—"}
+                    >
+                        {referralUrl || referralCode || "No link available"}
+                    </p>
+                </div>
+
+                {/* CTA — touch-manipulation for snappier mobile tap response */}
+                <button
+                    type="button"
+                    onClick={onCopy}
+                    disabled={!isActive}
+                    aria-label={
+                        isCopied ? "Referral link copied" :
+                            isError ? "Copy failed — select manually" :
+                                "Copy referral link"
+                    }
+                    aria-live="polite"
+                    className={btnCls}
+                >
+                    {isCopied ? (
+                        <><IconCheck size={14} /><span>Copied to clipboard</span></>
+                    ) : isError ? (
+                        <span>Copy failed — select manually</span>
+                    ) : (
+                        <><IconCopy size={14} /><span>Copy referral link</span></>
+                    )}
+                </button>
+
+            </div>
+        </div>
+    );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   REFERRAL NETWORK
+───────────────────────────────────────────────────────────────────────────── */
+
 const ReferralNetwork = React.memo(function ReferralNetwork({ data }) {
-    const directRefs = useMemo(() => data?.directReferrals ?? [], [data?.directReferrals]);
+    const directRefs = data?.directReferrals ?? [];
     const totalTeam = data?.teamMembersCount ?? 0;
     const qualifiedCount = data?.qualifiedReferralsCount ?? 0;
     const referralCode = data?.referralCode ?? null;
     const teamEarnings = data?.teamEarnings ?? 0;
 
-    const [copyState, setCopyState] = useState("idle");
-    const timerRef = useRef(null);
+    const referralUrl = useMemo(() => buildReferralUrl(referralCode), [referralCode]);
+    const { copyState, copy } = useCopyLink(referralUrl);
 
-    const isCopied = copyState === "copied";
-    const isError = copyState === "error";
+    const [l1, l2, l3, l4, l5] = useMemo(
+        () => distributeLevels(directRefs.length, totalTeam),
+        [directRefs.length, totalTeam],
+    );
 
-    const handleCopyReferral = useCallback(async () => {
-        if (!referralCode) return;
-
-        const appOrigin = process.env.NEXT_PUBLIC_NEXTAUTH_URL || window.location.origin;
-        const referralUrl = `${String(appOrigin).replace(/\/$/, "")}/signup?referral=${encodeURIComponent(referralCode)}`;
-
-        try {
-            await navigator.clipboard.writeText(referralUrl);
-            setCopyState("copied");
-        } catch {
-            setCopyState("error");
-        } finally {
-            window.clearTimeout(timerRef.current);
-            timerRef.current = window.setTimeout(() => setCopyState("idle"), 2200);
-        }
-    }, [referralCode]);
-
-    useEffect(() => {
-        return () => window.clearTimeout(timerRef.current);
-    }, []);
-
-    const directQualified = useMemo(() => directRefs.filter((r) => r.isQualified).length, [directRefs]);
-
-    /* Distribute totalTeam across levels */
-    const [l1, l2, l3, l4, l5] = useMemo(() => {
-        const d1 = Math.min(2, directRefs.length);
-        let rem = Math.max(0, totalTeam - d1);
-        const d2 = Math.min(4, rem); rem -= d2;
-        const d3 = Math.min(8, rem); rem -= d3;
-        const d4 = Math.min(16, rem); rem -= d4;
-        const d5 = Math.min(32, rem);
-        return [d1, d2, d3, d4, d5];
-    }, [directRefs.length, totalTeam]);
-
+    const directQualified = useMemo(
+        () => directRefs.filter((r) => r.isQualified).length,
+        [directRefs],
+    );
     const l2Qualified = Math.min(l2, Math.max(0, qualifiedCount - directQualified));
 
-    /* Level-1: one node per direct referral slot (max 2) */
     const level1Nodes = useMemo(
-        () =>
-            Array.from({ length: 2 }, (_, idx) => {
-                if (idx >= directRefs.length) return { status: STATUS.GHOST, label: "" };
-                const ref = directRefs[idx];
-                return {
-                    status: ref.status === "qualified"
-                        ? STATUS.QUALIFIED
-                        : ref.status === "zero"
-                            ? STATUS.ZERO
-                            : STATUS.PENDING,
-                    showCheck: ref.status === "qualified",
-                    label: ref.username?.slice(0, 9) || "",
-                };
-            }),
-        [directRefs]
+        () => Array.from({ length: LEVEL_CAPACITY[1] }, (_, i) => {
+            if (i >= directRefs.length) return { status: STATUS.GHOST };
+            const { status, username } = directRefs[i];
+            return {
+                status: status === "qualified" ? STATUS.QUALIFIED
+                    : status === "zero" ? STATUS.ZERO
+                        : STATUS.PENDING,
+                showCheck: status === "qualified",
+                label: username?.slice(0, 9) || "",
+            };
+        }),
+        [directRefs],
     );
 
-    /* 
-     * KEY FIX — green logic:
-     * When referralCode is used (any user in the tree), the node turns QUALIFIED (green).
-     * Levels 2-5 use buildNodes which marks nodes green up to `qualifiedUpTo`.
-     */
-    const level2Nodes = useMemo(
-        () => buildNodes(l2, 4, STATUS.PENDING, l2Qualified),
-        [l2, l2Qualified]
-    );
-    const level3Nodes = useMemo(() => buildNodes(l3, 8, STATUS.PENDING, 0), [l3]);
-    const level4Nodes = useMemo(() => buildNodes(l4, 16, STATUS.PENDING, 0), [l4]);
-    const level5Nodes = useMemo(() => buildNodes(l5, 32, STATUS.GHOST, 0), [l5]);
+    const level2Nodes = useMemo(() => buildLevelNodes(l2, LEVEL_CAPACITY[2], l2Qualified), [l2, l2Qualified]);
+    const level3Nodes = useMemo(() => buildLevelNodes(l3, LEVEL_CAPACITY[3]), [l3]);
+    const level4Nodes = useMemo(() => buildLevelNodes(l4, LEVEL_CAPACITY[4]), [l4]);
+    const level5Nodes = useMemo(() => buildLevelNodes(l5, LEVEL_CAPACITY[5]), [l5]);
+
+    const pyramidRows = [
+        { title: "Root", filled: 1, capacity: LEVEL_CAPACITY[0], nodes: [{ status: STATUS.ROOT, label: "You" }] },
+        { title: "Level 1", filled: l1, capacity: LEVEL_CAPACITY[1], nodes: level1Nodes },
+        { title: "Level 2", filled: l2, capacity: LEVEL_CAPACITY[2], nodes: level2Nodes },
+        { title: "Level 3", filled: l3, capacity: LEVEL_CAPACITY[3], nodes: level3Nodes },
+        { title: "Level 4", filled: l4, capacity: LEVEL_CAPACITY[4], nodes: level4Nodes },
+        { title: "Level 5", filled: l5, capacity: LEVEL_CAPACITY[5], nodes: level5Nodes },
+    ];
 
     const statCards = [
-        { label: "Referral Code", value: referralCode || "—", copyable: Boolean(referralCode) },
-        { label: "Team Members", value: totalTeam },
-        { label: "Qualified", value: qualifiedCount, accent: "emerald" },
-        { label: "Team Earnings", value: `$${teamEarnings.toFixed(2)}` },
+        { label: "Team Members", value: totalTeam, Icon: IconUsers, accent: false },
+        { label: "Qualified", value: qualifiedCount, Icon: IconShield, accent: true },
+        { label: "Team Earnings", value: `$${teamEarnings.toFixed(2)}`, Icon: IconDollar, accent: false },
     ];
 
     return (
         <section
             aria-labelledby="referral-network-heading"
-            className="rounded-3xl border border-slate-800 bg-slate-950/90 p-6 sm:p-8 shadow-2xl"
+            className="rounded-3xl border border-slate-800 bg-slate-950/90 p-4 sm:p-8 shadow-2xl"
         >
-            {/* Header row */}
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between mb-8">
-                <div className="flex-1 min-w-0">
-                    <h2
-                        id="referral-network-heading"
-                        className="text-2xl font-extrabold text-white"
-                    >
-                        Referral Network
-                    </h2>
-                    <p className="mt-2 text-sm text-slate-400 max-w-xl leading-relaxed">
-                        Nodes turn{" "}
-                        <span className="text-emerald-400 font-semibold">green</span> when a
-                        referral completes their first investment. Share your referral link
-                        to earn automatic rewards.
-                    </p>
-                    <Legend />
+            {/*
+             * Layout:
+             * Mobile (default): single column — stats above, link card below
+             * lg+: two columns side-by-side
+             * The link card column is fixed at 300px on lg, 340px on xl,
+             * so the left column gets all remaining space.
+             */}
+            <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_340px] lg:gap-6 mb-8">
+
+                {/* Left: heading + legend + stat cards */}
+                <div className="flex flex-col gap-4 sm:gap-5">
+                    <div>
+                        <h2
+                            id="referral-network-heading"
+                            className="text-xl sm:text-2xl font-extrabold text-white"
+                        >
+                            Referral Network
+                        </h2>
+                        <p className="mt-2 text-[13px] sm:text-sm text-slate-400 leading-relaxed">
+                            Nodes turn{" "}
+                            <span className="text-emerald-400 font-semibold">green</span>{" "}
+                            when a referral completes their first investment.
+                        </p>
+                        <Legend />
+                    </div>
+
+                    {/*
+                     * 3-col grid for stat cards.
+                     * Falls back to single col below ~380 px where 3 cards would clip.
+                     * Uses a 380 px custom breakpoint (Tailwind JIT arbitrary value).
+                     */}
+                    <div className="grid grid-cols-1 min-[380px]:grid-cols-3 gap-2 sm:gap-3">
+                        {statCards.map((card) => (
+                            <StatCard key={card.label} {...card} />
+                        ))}
+                    </div>
                 </div>
 
-                {/* Stat cards */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-3 lg:w-auto w-full">
-                    {statCards.map(({ label, value, accent, copyable }) => (
-                        <div
-                            key={label}
-                            className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4"
-                        >
-                            <div className="flex items-start justify-between gap-3">
-                                <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500 font-semibold leading-snug">
-                                    {label}
-                                </p>
-
-                                {copyable && (
-                                    <button
-                                        type="button"
-                                        onClick={handleCopyReferral}
-                                        aria-label={isCopied ? "Referral link copied" : isError ? "Copy failed — try selecting manually" : "Copy referral link"}
-                                        className={[
-                                            "inline-flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-200",
-                                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900",
-                                            "disabled:cursor-not-allowed disabled:opacity-40",
-                                            isCopied ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
-                                                : isError ? "bg-red-500 text-white"
-                                                    : "bg-yellow-400 text-slate-950 hover:bg-yellow-300 active:scale-95 shadow-md shadow-yellow-400/30",
-                                        ].join(" ")}
-                                    >
-                                        {isCopied ? (
-                                            <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                                        ) : isError ? (
-                                            <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                                        ) : (
-                                            <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-                                        )}
-                                    </button>
-                                )}
-                            </div>
-
-                            <p
-                                className={`mt-4 text-lg font-bold tabular-nums truncate ${accent === "emerald" ? "text-emerald-400" : "text-white"}`}
-                            >
-                                {value}
-                            </p>
-                        </div>
-                    ))}
+                {/* Right: link card */}
+                <div className="w-full lg:self-start">
+                    <ReferralLinkCard
+                        referralCode={referralCode}
+                        referralUrl={referralUrl}
+                        copyState={copyState}
+                        onCopy={copy}
+                    />
                 </div>
             </div>
 
-            {/* Pyramid rows */}
-            <div className="space-y-5 divide-y divide-slate-800/50">
-                {[
-                    { title: "Root", filled: 1, capacity: 1, nodes: [{ status: STATUS.ROOT, label: "You", showCheck: false }] },
-                    { title: "Level 1", filled: l1, capacity: 2, nodes: level1Nodes },
-                    { title: "Level 2", filled: l2, capacity: 4, nodes: level2Nodes },
-                    { title: "Level 3", filled: l3, capacity: 8, nodes: level3Nodes },
-                    { title: "Level 4", filled: l4, capacity: 16, nodes: level4Nodes },
-                    { title: "Level 5", filled: l5, capacity: 32, nodes: level5Nodes },
-                ].map((row) => (
-                    <div key={row.title} className="pt-5 first:pt-0">
-                        <ReferralRow {...row} />
+            {/* Pyramid */}
+            <div
+                role="list"
+                aria-label="Referral pyramid levels"
+                className="divide-y divide-slate-800/50"
+            >
+                {pyramidRows.map((row) => (
+                    <div key={row.title} role="listitem">
+                        <PyramidRow {...row} />
                     </div>
                 ))}
             </div>
@@ -396,9 +625,140 @@ const ReferralNetwork = React.memo(function ReferralNetwork({ data }) {
     );
 });
 
-/* ─────────────────────────────────────────────
-   Team page — data fetching shell
-───────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────────
+   ACTIVITY TABLE
+   Fix: horizontal scroll wrapper ensures table never breaks the page layout.
+   Added -webkit-overflow-scrolling for smooth momentum scroll on iOS.
+   Min-width on the table so it's readable when scrolled horizontally.
+───────────────────────────────────────────────────────────────────────────── */
+
+function ActivityTable({ referrals }) {
+    if (referrals.length === 0) {
+        return (
+            <div className="py-14 flex flex-col items-center gap-3 text-slate-500">
+                <span aria-hidden="true"><IconUsers size={32} /></span>
+                <p className="text-sm font-medium">No direct referrals yet</p>
+                <p className="text-xs text-slate-600 text-center px-4">
+                    Share your referral link to start building your team.
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        /*
+         * overflow-x-auto + -webkit-overflow-scrolling: touch gives iOS momentum
+         * scrolling. The table itself has a min-width so it stays readable and
+         * never forces the outer page to scroll.
+         */
+        <div
+            className="overflow-x-auto rounded-2xl border border-slate-800"
+            style={{ WebkitOverflowScrolling: "touch" }}
+        >
+            <table className="w-full border-collapse text-left text-sm" style={{ minWidth: 480 }}>
+                <thead>
+                    <tr className="border-b border-slate-800 bg-slate-900/60">
+                        {["Referral", "Joined", "Invested", "Status"].map((col) => (
+                            <th
+                                key={col}
+                                scope="col"
+                                className="py-3 px-3 sm:px-5 text-[10px] uppercase tracking-widest text-slate-500 font-semibold whitespace-nowrap"
+                            >
+                                {col}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {referrals.map((ref) => (
+                        <tr
+                            key={`${ref.username}-${ref.joinedAt}`}
+                            className="border-b border-slate-800/60 last:border-0 transition-colors hover:bg-white/[0.025]"
+                        >
+                            <td className="py-3 px-3 sm:px-5 font-medium text-white whitespace-nowrap">
+                                {ref.username}
+                            </td>
+                            <td className="py-3 px-3 sm:px-5 text-slate-400 whitespace-nowrap">
+                                {new Date(ref.joinedAt).toLocaleDateString(undefined, {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                })}
+                            </td>
+                            <td className="py-3 px-3 sm:px-5 text-slate-100 tabular-nums whitespace-nowrap">
+                                ${ref.investedAmount.toFixed(2)}
+                            </td>
+                            <td className="py-3 px-3 sm:px-5">
+                                <span
+                                    className={[
+                                        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap",
+                                        ref.isQualified
+                                            ? "bg-emerald-500/15 text-emerald-300"
+                                            : "bg-yellow-500/15 text-yellow-300",
+                                    ].join(" ")}
+                                >
+                                    <span
+                                        aria-hidden="true"
+                                        className={`inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full ${ref.isQualified ? "bg-emerald-400" : "bg-yellow-400"
+                                            }`}
+                                    />
+                                    {ref.isQualified ? "Invested" : "Pending"}
+                                </span>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   LOADING SKELETON
+───────────────────────────────────────────────────────────────────────────── */
+
+function LoadingSkeleton() {
+    return (
+        <div
+            aria-live="polite"
+            aria-busy="true"
+            aria-label="Loading team data"
+            className="rounded-3xl bg-slate-900/80 p-6 sm:p-8 animate-pulse space-y-4 sm:space-y-5"
+        >
+            <div className="h-5 w-48 rounded-full bg-slate-700" />
+            <div className="h-4 w-64 rounded-full bg-slate-800" />
+            <div className="h-4 w-36 rounded-full bg-slate-800" />
+            <div className="grid grid-cols-3 gap-3 pt-2">
+                {[0, 1, 2].map((n) => (
+                    <div key={n} className="h-16 sm:h-20 rounded-2xl bg-slate-800" />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ERROR BANNER
+───────────────────────────────────────────────────────────────────────────── */
+
+function ErrorBanner({ message }) {
+    return (
+        <div
+            role="alert"
+            className="rounded-3xl border border-red-500/40 bg-red-500/10 p-5 sm:p-6 text-red-200 shadow-xl"
+        >
+            <p className="font-semibold">Unable to load team data</p>
+            <p className="mt-1.5 text-sm text-red-300/80 break-words">{message}</p>
+        </div>
+    );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PAGE ROOT
+   Fix: safe-area insets for notched / gesture-bar phones (iOS / Android).
+   Reduced px padding on mobile from px-4 to px-3 so panels don't crowd edges.
+───────────────────────────────────────────────────────────────────────────── */
+
 export default function Team() {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -407,7 +767,7 @@ export default function Team() {
     useEffect(() => {
         let mounted = true;
 
-        async function fetchTeam() {
+        (async () => {
             try {
                 const res = await fetch("/api/user/team");
                 const json = await res.json();
@@ -418,155 +778,70 @@ export default function Team() {
             } finally {
                 if (mounted) setLoading(false);
             }
-        }
+        })();
 
-        fetchTeam();
         return () => { mounted = false; };
     }, []);
 
     return (
-        <main className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black text-white px-4 py-8">
-            <div className="max-w-6xl mx-auto space-y-8">
+        /*
+         * env(safe-area-inset-*): respects notch / home-indicator on iOS &
+         * newer Android. px-3 on mobile, px-4 sm+, px-6 md+.
+         * max-w-6xl centres content on wide screens.
+         */
+        <main
+            className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black text-white py-6 sm:py-12"
+            style={{
+                paddingLeft: "max(0.75rem, env(safe-area-inset-left))",
+                paddingRight: "max(0.75rem, env(safe-area-inset-right))",
+                paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
+            }}
+        >
+            <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
 
-                {/* ── Hero header ───────────────────────────────── */}
+                {/* Hero header */}
                 <header
                     aria-labelledby="team-dashboard-heading"
-                    className="rounded-3xl border border-yellow-500/20 bg-gradient-to-r from-yellow-500/20 to-black/20 p-8 shadow-2xl"
+                    className="rounded-3xl border border-yellow-500/20 bg-gradient-to-br from-yellow-500/15 via-yellow-500/5 to-transparent p-5 sm:p-10 shadow-2xl"
                 >
-                    <p className="text-sm uppercase tracking-[0.4em] text-yellow-300 font-semibold">
+                    <p className="text-[10px] sm:text-xs uppercase tracking-[0.35em] text-yellow-300 font-semibold">
                         Team Rewards
                     </p>
                     <h1
                         id="team-dashboard-heading"
-                        className="mt-4 text-3xl sm:text-4xl font-extrabold text-white"
+                        className="mt-2 sm:mt-3 text-2xl sm:text-4xl font-extrabold text-white"
                     >
                         Team Dashboard
                     </h1>
-                    <p className="mt-3 max-w-2xl text-sm sm:text-base text-gray-300 leading-relaxed">
-                        Build your team with direct referrals, track first investments, and
-                        earn referral rewards automatically.
+                    <p className="mt-2 sm:mt-3 max-w-2xl text-[13px] sm:text-base text-gray-300 leading-relaxed">
+                        Build your team, track first investments, and earn referral rewards automatically.
                     </p>
                 </header>
 
-                {/* ── Loading skeleton ──────────────────────────── */}
-                {loading && (
-                    <div
-                        aria-live="polite"
-                        aria-label="Loading team data"
-                        className="rounded-3xl bg-slate-900/80 p-8 shadow-xl animate-pulse space-y-4"
-                    >
-                        <div className="h-4 w-48 rounded-full bg-slate-700" />
-                        <div className="h-4 w-72 rounded-full bg-slate-800" />
-                        <div className="h-4 w-36 rounded-full bg-slate-800" />
-                    </div>
-                )}
+                {loading && <LoadingSkeleton />}
+                {!loading && error && <ErrorBanner message={error} />}
 
-                {/* ── Error banner ──────────────────────────────── */}
-                {error && (
-                    <div
-                        role="alert"
-                        className="rounded-3xl border border-red-500/40 bg-red-500/10 p-6 text-red-200 shadow-xl"
-                    >
-                        <p className="font-semibold">Unable to load team data</p>
-                        <p className="mt-2 text-sm">{error}</p>
-                    </div>
-                )}
-
-                {/* ── Main content ──────────────────────────────── */}
                 {!loading && !error && data && (
                     <>
                         <ReferralNetwork data={data} />
 
-                        {/* ── Direct referral activity table ──────────── */}
                         <section
-                            aria-labelledby="referral-activity-heading"
-                            className="rounded-3xl border border-slate-800 bg-slate-950/90 p-6 sm:p-8 shadow-2xl"
+                            aria-labelledby="activity-heading"
+                            className="rounded-3xl border border-slate-800 bg-slate-950/90 p-4 sm:p-8 shadow-2xl"
                         >
-                            <h2
-                                id="referral-activity-heading"
-                                className="text-2xl font-extrabold text-white"
-                            >
-                                Direct Referral Activity
-                            </h2>
-                            <p className="mt-2 text-sm text-gray-400">
-                                Each direct referral that completes their first investment earns
-                                you a reward.
-                            </p>
-
-                            <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-800">
-                                <table className="w-full min-w-[560px] border-collapse text-left text-sm">
-                                    <thead>
-                                        <tr className="border-b border-slate-800 bg-slate-900/60">
-                                            <th scope="col" className="py-3 px-5 text-xs uppercase tracking-widest text-slate-500 font-semibold">
-                                                Referral
-                                            </th>
-                                            <th scope="col" className="py-3 px-5 text-xs uppercase tracking-widest text-slate-500 font-semibold">
-                                                Joined
-                                            </th>
-                                            <th scope="col" className="py-3 px-5 text-xs uppercase tracking-widest text-slate-500 font-semibold">
-                                                Invested
-                                            </th>
-                                            <th scope="col" className="py-3 px-5 text-xs uppercase tracking-widest text-slate-500 font-semibold">
-                                                Status
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {data.directReferrals.length === 0 ? (
-                                            <tr>
-                                                <td
-                                                    colSpan={4}
-                                                    className="py-10 px-5 text-center text-slate-500"
-                                                >
-                                                    No direct referrals yet. Share your referral code to
-                                                    start building your team.
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            data.directReferrals.map((ref) => (
-                                                <tr
-                                                    key={`${ref.username}-${ref.joinedAt}`}
-                                                    className="border-b border-slate-800/70 transition-colors hover:bg-white/[0.03]"
-                                                >
-                                                    <td className="py-4 px-5 font-medium text-white">
-                                                        {ref.username}
-                                                    </td>
-                                                    <td className="py-4 px-5 text-slate-400">
-                                                        {new Date(ref.joinedAt).toLocaleDateString(undefined, {
-                                                            year: "numeric",
-                                                            month: "short",
-                                                            day: "numeric",
-                                                        })}
-                                                    </td>
-                                                    <td className="py-4 px-5 text-slate-100 tabular-nums">
-                                                        ${ref.investedAmount.toFixed(2)}
-                                                    </td>
-                                                    <td className="py-4 px-5">
-                                                        <span
-                                                            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${ref.isQualified
-                                                                ? "bg-emerald-500/15 text-emerald-300"
-                                                                : "bg-yellow-500/15 text-yellow-300"
-                                                                }`}
-                                                        >
-                                                            {/* Status dot */}
-                                                            <span
-                                                                aria-hidden="true"
-                                                                className={`inline-block h-1.5 w-1.5 rounded-full ${ref.isQualified
-                                                                    ? "bg-emerald-400"
-                                                                    : "bg-yellow-400"
-                                                                    }`}
-                                                            />
-                                                            {ref.isQualified
-                                                                ? "First investment complete"
-                                                                : "Awaiting first investment"}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
+                            <div className="mb-5 sm:mb-6">
+                                <h2
+                                    id="activity-heading"
+                                    className="text-xl sm:text-2xl font-extrabold text-white"
+                                >
+                                    Direct Referral Activity
+                                </h2>
+                                <p className="mt-1.5 text-[13px] sm:text-sm text-slate-400">
+                                    Each qualified referral earns you a reward automatically.
+                                </p>
                             </div>
+
+                            <ActivityTable referrals={data.directReferrals} />
                         </section>
                     </>
                 )}

@@ -31,8 +31,8 @@ const STATS = [
 const AWARDS = [
   { year: "2022", label: "Best Company for Work-Life Balance", org: "UK Business Awards" },
   { year: "2021", label: "Best Place to Work in London", org: "London Chamber of Commerce" },
-  { year: "2020", label: "Best Place to Work in London", org: "London Chamber of Commerce" },
-  { year: "2019", label: "Best Company for Diversity", org: "Diversity in Finance" },
+  { year: "2023", label: "Best Place to Work in London", org: "London Chamber of Commerce" },
+  { year: "2025", label: "Best Company for Diversity", org: "Diversity in Finance" },
 ];
 
 const PILLARS = [

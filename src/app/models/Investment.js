@@ -5,7 +5,8 @@ const InvestmentSchema = new mongoose.Schema(
         user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
-            required: true
+            required: true,
+            index: true,
         },
 
         minerName: String,
@@ -42,12 +43,15 @@ const InvestmentSchema = new mongoose.Schema(
         status: {
             type: String,
             enum: ["active", "completed"],
-            default: "active"
+            default: "active",
+            index: true,
         }
 
     },
     { timestamps: true }
 );
+
+InvestmentSchema.index({ user: 1, status: 1 });
 
 export default mongoose.models.Investment ||
     mongoose.model("Investment", InvestmentSchema);

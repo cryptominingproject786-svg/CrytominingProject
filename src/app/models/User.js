@@ -113,6 +113,7 @@ const UserSchema = new mongoose.Schema(
         },
         firstInvestmentAt: {
             type: Date,
+            index: true,
         },
         referralCount: {
             type: Number,
@@ -148,6 +149,10 @@ const UserSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+// Performance indexes for referral lookups and user timeline queries
+UserSchema.index({ referredBy: 1, createdAt: -1 });
+UserSchema.index({ referredBy: 1, firstInvestmentAt: 1 });
 
 // 🔐 Password Hashing
 UserSchema.pre("save", async function () {

@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const RechargeSchema = new mongoose.Schema(
     {
-        user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        user: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
         network: { type: String, required: true },
         amount: { type: Number, required: true },
         txId: {
@@ -29,5 +29,8 @@ const RechargeSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+// Optimize user recharge history queries by user + creation date
+RechargeSchema.index({ user: 1, createdAt: -1 });
 
 export default mongoose.models.Recharge || mongoose.model("Recharge", RechargeSchema);
