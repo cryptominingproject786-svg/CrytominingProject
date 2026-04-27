@@ -1,76 +1,107 @@
+// app/api/recharge/admin/route.js  (or pages/api/recharge/admin.js — adjust as needed)
 import { NextResponse } from "next/server";
 import connectDB from "../../../lib/mongoDb";
 import Recharge from "../../../models/Recharge";
-import User from "../../../models/User";
 import { getToken } from "next-auth/jwt";
-export const dynamic = 'force-dynamic';
 
+export const dynamic = "force-dynamic";
+
+/**
+ * GET /api/recharge/admin?page=1&limit=20
+ *
+ * Returns a paginated list of recharges with full pagination metadata:
+ *   { data, page, limit, total, pageCount, hasMore }
+ *
+ * Previously this endpoint was missing pageCount / hasMore, causing the
+ * client-side Next/Previous buttons to stay permanently disabled.
+ */
 export async function GET(req) {
     try {
+        // ── Auth ────────────────────────────────────────────────────────────────
         const token = await getToken({
             req,
-            secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET,
+            secret:
+                process.env.AUTH_SECRET ||
+                process.env.NEXTAUTH_SECRET ||
+                process.env.SECRET,
         });
 
         if (!token || token.role !== "admin") {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        // ── Query params ─────────────────────────────────────────────────────────
+        const { searchParams } = new URL(req.url);
+
+        // page is 1-indexed; clamp to a safe minimum of 1
+        const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+
+        // limit: default 20, max 100 to avoid oversized payloads
+        const limit = Math.min(
+            Math.max(1, parseInt(searchParams.get("limit") || "20", 10)),
+            100
+        );
+
+        const skip = (page - 1) * limit;
+
         await connectDB();
 
-        const url = new URL(req.url);
-        const limit = Math.min(Number(url.searchParams.get("limit")) || 50, 200);
+        // ── Run count + data query in parallel for performance ───────────────────
+        const [total, recharges] = await Promise.all([
+            Recharge.countDocuments({}),
+            Recharge.find({})
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .populate(
+                    "user",
+                    "username email phone balance investedAmount totalEarnings dailyProfit"
+                )
+                .lean(),
+        ]);
 
-        // include rich user details on each recharge for admin dashboard
-        const recharges = await Recharge.find()
-            .sort({ createdAt: -1 })
-            .limit(limit)
-            // select fields admins care about so we can render full user summary client-side
-            .populate("user", "username email phone balance investedAmount totalEarnings dailyProfit role")
-            .lean();
+        // ── Derive pagination metadata ────────────────────────────────────────────
+        const pageCount = Math.max(1, Math.ceil(total / limit));
+        const hasMore = page < pageCount;
 
-        // debug: inspect first document to ensure user was populated
-        if (recharges.length > 0) {
-            console.log("/api/recharge/admin sample after populate", recharges[0]);
-        }
-        const items = recharges.map((r) => {
-            let slipData = null;
-
-            if (r.slip?.data && r.slip?.contentType) {
-                let base64String = null;
-
-                // Case 1: Proper Buffer
-                if (Buffer.isBuffer(r.slip.data)) {
-                    base64String = r.slip.data.toString("base64");
+        // ── Serialize: strip binary slip.data, expose only hasData flag ──────────
+        const serialized = recharges.map((r) => ({
+            _id: String(r._id),
+            user: r.user
+                ? {
+                    _id: String(r.user._id),
+                    username: r.user.username,
+                    email: r.user.email,
+                    phone: r.user.phone || null,
+                    balance: r.user.balance ?? 0,
+                    investedAmount: r.user.investedAmount ?? 0,
+                    totalEarnings: r.user.totalEarnings ?? 0,
+                    dailyProfit: r.user.dailyProfit ?? 0,
                 }
+                : null,
+            amount: r.amount,
+            network: r.network,
+            txId: r.txId,
+            status: r.status,
+            createdAt: r.createdAt,
+            // Only expose whether a slip exists — never send binary data in list view
+            slip: { hasData: !!(r.slip?.data) },
+        }));
 
-                // Case 2: MongoDB Binary object (when using lean())
-                else if (r.slip.data?.buffer) {
-                    base64String = Buffer.from(r.slip.data.buffer).toString("base64");
-                }
-
-                // Case 3: $binary format
-                else if (r.slip.data?.$binary?.base64) {
-                    base64String = r.slip.data.$binary.base64;
-                }
-
-                if (base64String) {
-                    slipData = `data:${r.slip.contentType};base64,${base64String}`;
-                }
-            }
-
-
-            return {
-                ...r,
-                slip: slipData ? { dataUrl: slipData } : null,
-            };
-        });
-
-
-        return NextResponse.json({ data: items }, { status: 200 });
-
+        return NextResponse.json(
+            {
+                data: serialized,
+                // ── Pagination metadata the client depends on ──────────────────────
+                page,       // current page (1-indexed)
+                limit,      // items per page
+                total,      // total documents in collection
+                pageCount,  // total number of pages
+                hasMore,    // true if there is a next page
+            },
+            { status: 200 }
+        );
     } catch (err) {
-        console.error("/api/recharge/admin error", err);
+        console.error("GET /api/recharge/admin error:", err);
         return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
 }

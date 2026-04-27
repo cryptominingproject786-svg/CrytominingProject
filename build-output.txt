@@ -1,0 +1,82 @@
+﻿
+> mining@0.1.0 build
+> next build
+
+  Γû▓ Next.js 14.2.35
+  - Environments: .env.local
+  - Experiments (use with caution):
+    ┬╖ optimizeCss
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/25) ...
+Time 12.9551
+   Generating static pages (6/25) 
+   Generating static pages (12/25) 
+Time 15.5727
+   Generating static pages (18/25) 
+ Γ£ô Generating static pages (25/25)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+Γöî Γùï /                                    3.66 kB         105 kB
+Γö£ Γùï /_not-found                          913 B          88.7 kB
+Γö£ Γùï /about                               147 B          87.9 kB
+Γö£ Γùï /admin                               147 B          87.9 kB
+Γö£ ╞Æ /admin/dashboard                     139 B           106 kB
+Γö£ Γùï /admin/dashbord                      139 B           106 kB
+Γö£ Γùï /admin/login                         1.51 kB         108 kB
+Γö£ Γùï /admin/signup                        1.8 kB          108 kB
+Γö£ Γùï /admin/withdraws                     3.71 kB        91.5 kB
+Γö£ ╞Æ /admin/withdraws/[id]                4.35 kB         102 kB
+Γö£ ╞Æ /api/admin/stats                     0 B                0 B
+Γö£ ╞Æ /api/admin/user/[id]/balance         0 B                0 B
+Γö£ ╞Æ /api/auth/[...nextauth]              0 B                0 B
+Γö£ ╞Æ /api/auth/admin-profile              0 B                0 B
+Γö£ ╞Æ /api/auth/admin/register             0 B                0 B
+Γö£ ╞Æ /api/auth/check-role                 0 B                0 B
+Γö£ ╞Æ /api/auth/forgot-password            0 B                0 B
+Γö£ ╞Æ /api/auth/register                   0 B                0 B
+Γö£ ╞Æ /api/auth/reset-password             0 B                0 B
+Γö£ ╞Æ /api/invest                          0 B                0 B
+Γö£ ╞Æ /api/invest/claim                    0 B                0 B
+Γö£ ╞Æ /api/invest/credit-profit            0 B                0 B
+Γö£ ╞Æ /api/invest/maturity                 0 B                0 B
+Γö£ ╞Æ /api/invest/profit                   0 B                0 B
+Γö£ ╞Æ /api/recharge                        0 B                0 B
+Γö£ ╞Æ /api/recharge/[id]                   0 B                0 B
+Γö£ ╞Æ /api/recharge/admin                  0 B                0 B
+Γö£ ╞Æ /api/recharge/admin/[id]             0 B                0 B
+Γö£ ╞Æ /api/referral/daily-bonus            0 B                0 B
+Γö£ ╞Æ /api/user/me                         0 B                0 B
+Γö£ ╞Æ /api/user/password                   0 B                0 B
+Γö£ ╞Æ /api/user/profile                    0 B                0 B
+Γö£ ╞Æ /api/user/recharges                  0 B                0 B
+Γö£ ╞Æ /api/user/team                       0 B                0 B
+Γö£ ╞Æ /api/user/wallet                     0 B                0 B
+Γö£ ╞Æ /api/withdraw                        0 B                0 B
+Γö£ ╞Æ /api/withdraw/admin                  0 B                0 B
+Γö£ ╞Æ /api/withdraw/admin/[id]             0 B                0 B
+Γö£ Γùï /dashboard                           2.04 kB         105 kB
+Γö£ Γùï /dashboard/CompanyProfile            147 B          87.9 kB
+Γö£ Γùï /dashboard/Team                      6.63 kB        94.4 kB
+Γö£ Γùï /dashboard/wallet                    5.75 kB        98.9 kB
+Γö£ Γùï /join                                3.52 kB         101 kB
+Γö£ Γùï /mining                              8.39 kB         110 kB
+Γö£ Γùï /privacy                             147 B          87.9 kB
+Γö£ ╞Æ /recharge/[network]                  6.01 kB         111 kB
+Γö£ Γùï /reset-password                      1.97 kB        89.7 kB
+Γö£ Γùï /settings                            3.34 kB        91.1 kB
+Γöö Γùï /signup                              3.98 kB         101 kB
++ First Load JS shared by all            87.8 kB
+  Γö£ chunks/117-50843badd3ce85e6.js       31.8 kB
+  Γö£ chunks/fd9d1056-e3f362e22ce4ee47.js  53.7 kB
+  Γöö other shared chunks (total)          2.31 kB
+
+
+Γùï  (Static)   prerendered as static content
+╞Æ  (Dynamic)  server-rendered on demand
+

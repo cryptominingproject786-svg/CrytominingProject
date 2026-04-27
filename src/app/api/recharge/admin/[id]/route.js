@@ -1,12 +1,122 @@
 import { NextResponse } from "next/server";
 import connectDB from "../../../../lib/mongoDb";
 import Recharge from "../../../../models/Recharge";
-import User from "../../../../models/User";
 import ReferralBonus from "../../../../models/ReferralBonus";
+import User from "../../../../models/User";
 import { getToken } from "next-auth/jwt";
 import mongoose from "mongoose";
 
 const REFERRAL_BONUS_RATE = 0.10;
+
+function inferContentType(filename, storedType) {
+    if (storedType) return storedType;
+    if (!filename) return "image/png";
+    const lower = filename.toLowerCase();
+    if (lower.endsWith(".png")) return "image/png";
+    if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+    if (lower.endsWith(".webp")) return "image/webp";
+    if (lower.endsWith(".gif")) return "image/gif";
+    return "image/png";
+}
+
+function detectImageMimeType(buffer) {
+    if (!buffer || !Buffer.isBuffer(buffer)) return null;
+    if (buffer.length >= 8 && buffer.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+        return "image/png";
+    }
+    if (buffer.length >= 3 && buffer.slice(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))) {
+        return "image/jpeg";
+    }
+    if (buffer.length >= 12 && buffer.slice(0, 4).toString() === "RIFF" && buffer.slice(8, 12).toString() === "WEBP") {
+        return "image/webp";
+    }
+    if (buffer.length >= 6 && (buffer.slice(0, 6).toString() === "GIF87a" || buffer.slice(0, 6).toString() === "GIF89a")) {
+        return "image/gif";
+    }
+    return null;
+}
+
+function serializeSlipData(data) {
+    if (!data) return null;
+    if (Buffer.isBuffer(data)) return data.toString("base64");
+    if (typeof data === "string") {
+        const match = data.match(/^data:(.+);base64,(.+)$/);
+        return match ? match[2].trim() : data.trim();
+    }
+    if (data instanceof ArrayBuffer) {
+        return Buffer.from(data).toString("base64");
+    }
+    if (ArrayBuffer.isView(data)) {
+        return Buffer.from(data.buffer, data.byteOffset, data.byteLength).toString("base64");
+    }
+    if (data.buffer) {
+        try {
+            return Buffer.from(data.buffer).toString("base64");
+        } catch (e) {
+            console.warn("serializeSlipData: failed to convert data.buffer", e);
+        }
+    }
+    if (Array.isArray(data)) {
+        return Buffer.from(data).toString("base64");
+    }
+    if (data.data) {
+        return serializeSlipData(data.data);
+    }
+    return null;
+}
+
+export async function GET(req, { params }) {
+    try {
+        const token = await getToken({
+            req,
+            secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET,
+        });
+
+        if (!token || token.role !== "admin") {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { id } = params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+        }
+
+        await connectDB();
+
+        const recharge = await Recharge.findById(id)
+            .select("slip.contentType slip.filename slip.size slip.data")
+            .lean();
+
+        if (!recharge) {
+            return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+
+        const slipBase64 = serializeSlipData(recharge.slip?.data);
+        if (!slipBase64) {
+            return NextResponse.json({ error: "Slip image data unavailable" }, { status: 404 });
+        }
+
+        const imageBuffer = Buffer.from(slipBase64, "base64");
+        const detectedType = detectImageMimeType(imageBuffer);
+        const contentType = detectedType || inferContentType(recharge.slip?.filename, recharge.slip?.contentType);
+        const slipData = `data:${contentType};base64,${slipBase64}`;
+
+        return NextResponse.json({
+            data: {
+                ...recharge,
+                slip: {
+                    contentType,
+                    filename: recharge.slip.filename,
+                    size: recharge.slip.size,
+                    dataUrl: slipData,
+                },
+            },
+        }, { status: 200 });
+    } catch (err) {
+        console.error("/api/recharge/admin/[id] GET error:", err);
+        return NextResponse.json({ error: "Server error" }, { status: 500 });
+    }
+}
 
 export async function PATCH(req, { params }) {
     try {
@@ -19,8 +129,7 @@ export async function PATCH(req, { params }) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // ✅ NEXTJS 15 FIX — await params
-        const { id } = await params;
+        const { id } = params;
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return NextResponse.json({ error: "Invalid id" }, { status: 400 });
@@ -35,17 +144,19 @@ export async function PATCH(req, { params }) {
 
         await connectDB();
 
-        const recharge = await Recharge.findById(id);
+        const recharge = await Recharge.findById(id)
+            .select("status user amount txId slip")
+            .populate({ path: "user", select: "referredBy" })
+            .lean();
+
         if (!recharge) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
-        // if the requested status is identical to the current one, there's nothing to do
         if (recharge.status === status) {
             return NextResponse.json({ data: recharge }, { status: 200 });
         }
 
-        // once a recharge has been confirmed we no longer allow it to change to another state
         if (recharge.status === "confirmed" && status !== "confirmed") {
             return NextResponse.json(
                 { error: "Cannot change status after confirmation" },
@@ -53,51 +164,59 @@ export async function PATCH(req, { params }) {
             );
         }
 
-        // update status and handle confirmation side-effects below
-        recharge.status = status;
-
+        const now = new Date();
+        const updates = { status };
         if (status === "confirmed") {
-            recharge.confirmedAt = new Date();
+            updates.confirmedAt = now;
+        }
 
-            if (recharge.user) {
-                const creditAmount = Number(recharge.amount);
-                const bonusAmount = Math.round(creditAmount * REFERRAL_BONUS_RATE * 100) / 100;
+        const updatedRecharge = await Recharge.findByIdAndUpdate(
+            id,
+            { $set: updates },
+            { new: true }
+        )
+            .populate("user", "username email phone balance investedAmount totalEarnings dailyProfit role")
+            .lean();
 
-                const rechargeUser = await User.findById(recharge.user).select("referredBy").lean();
-                const isReferred = rechargeUser?.referredBy && mongoose.Types.ObjectId.isValid(rechargeUser.referredBy);
-                let shouldApplyReferralBonus = false;
+        if (status === "confirmed" && recharge.user) {
+            const creditAmount = Number(recharge.amount);
+            const bonusAmount = Math.round(creditAmount * REFERRAL_BONUS_RATE * 100) / 100;
+            const rechargeUser = recharge.user;
+            const isReferred = rechargeUser?.referredBy && mongoose.Types.ObjectId.isValid(rechargeUser.referredBy);
+            let shouldApplyReferralBonus = false;
 
-                if (isReferred) {
-                    const existingBonus = await ReferralBonus.exists({
-                        parent: rechargeUser.referredBy,
-                        referredUser: rechargeUser._id,
-                        type: "firstReferralRechargeBonus",
-                    });
-                    shouldApplyReferralBonus = !existingBonus;
-                }
+            if (isReferred) {
+                const existingBonus = await ReferralBonus.exists({
+                    parent: rechargeUser.referredBy,
+                    referredUser: rechargeUser._id,
+                    type: "firstReferralRechargeBonus",
+                });
+                shouldApplyReferralBonus = !existingBonus;
+            }
 
-                const childUpdates = {
-                    $inc: {
-                        balance: creditAmount,
-                    },
-                    $set: {
-                        lastRechargeAt: recharge.confirmedAt,
-                        lastRechargeAmount: recharge.amount,
-                        lastRechargeTxId: recharge.txId,
-                        lastRechargeSlipFilename: recharge.slip?.filename,
-                        lastRechargeSlipSize: recharge.slip?.size,
-                    },
-                };
+            const childUpdates = {
+                $inc: {
+                    balance: creditAmount,
+                },
+                $set: {
+                    lastRechargeAt: now,
+                    lastRechargeAmount: recharge.amount,
+                    lastRechargeTxId: recharge.txId,
+                    lastRechargeSlipFilename: recharge.slip?.filename,
+                    lastRechargeSlipSize: recharge.slip?.size,
+                },
+            };
 
-                if (shouldApplyReferralBonus) {
-                    childUpdates.$inc.totalEarnings = bonusAmount;
-                    childUpdates.$inc.balance += bonusAmount;
-                }
+            if (shouldApplyReferralBonus) {
+                childUpdates.$inc.totalEarnings = bonusAmount;
+                childUpdates.$inc.balance += bonusAmount;
+            }
 
-                await User.updateOne({ _id: recharge.user }, childUpdates);
+            await User.updateOne({ _id: recharge.user._id || recharge.user }, childUpdates);
 
-                if (shouldApplyReferralBonus) {
-                    await User.updateOne(
+            if (shouldApplyReferralBonus) {
+                await Promise.all([
+                    User.updateOne(
                         { _id: rechargeUser.referredBy },
                         {
                             $inc: {
@@ -105,36 +224,25 @@ export async function PATCH(req, { params }) {
                                 totalEarnings: bonusAmount,
                             },
                         }
-                    );
-
-                    try {
-                        await ReferralBonus.create({
-                            parent: rechargeUser.referredBy,
-                            referredUser: rechargeUser._id,
-                            amount: bonusAmount,
-                            description: "First referral recharge bonus",
-                            awardedAt: new Date(),
-                            type: "firstReferralRechargeBonus",
-                        });
-                    } catch (error) {
+                    ),
+                    ReferralBonus.create({
+                        parent: rechargeUser.referredBy,
+                        referredUser: rechargeUser._id,
+                        amount: bonusAmount,
+                        description: "First referral recharge bonus",
+                        awardedAt: now,
+                        type: "firstReferralRechargeBonus",
+                    }).catch((error) => {
                         if (error.code !== 11000) {
                             throw error;
                         }
-                    }
-                }
-
-                console.info("/api/recharge/admin bonus applied", {
-                    userId: String(recharge.user),
-                    parentId: rechargeUser?.referredBy ? String(rechargeUser.referredBy) : null,
-                    rechargeAmount: creditAmount,
-                    bonusAmount: shouldApplyReferralBonus ? bonusAmount : 0,
-                });
+                        return null;
+                    }),
+                ]);
             }
         }
 
-        await recharge.save();
-
-        return NextResponse.json({ data: recharge }, { status: 200 });
+        return NextResponse.json({ data: updatedRecharge }, { status: 200 });
 
     } catch (err) {
         console.error("PATCH ERROR:", err);

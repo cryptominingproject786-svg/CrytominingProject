@@ -32,5 +32,7 @@ const RechargeSchema = new mongoose.Schema(
 
 // Optimize user recharge history queries by user + creation date
 RechargeSchema.index({ user: 1, createdAt: -1 });
+// Optimize admin listing by created time when sorting latest recharges
+RechargeSchema.index({ createdAt: -1 });
 
 export default mongoose.models.Recharge || mongoose.model("Recharge", RechargeSchema);
