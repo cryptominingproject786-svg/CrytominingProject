@@ -28,11 +28,6 @@ const ConfirmingRecharge = dynamic(() => import("./ConfirmingRecharge"), {
 });
 
 // ── Hoisted outside component — never re-created on renders ───────────────
-const TX_ID_LENGTH = Object.freeze({
-    TRC20: 64,
-    BEP20: 66,
-});
-
 const MIN_AMOUNT = 50;
 
 // ── Structured data for SEO (WebPage schema) ──────────────────────────────
@@ -41,7 +36,7 @@ const STRUCTURED_DATA = JSON.stringify({
     "@type": "WebPage",
     name: "Confirm Recharge — USDT Deposit",
     description:
-        "Submit your USDT deposit proof by entering the transaction ID and uploading a payment slip.",
+        "Submit your USDT deposit proof by uploading a payment slip and amount for fast confirmation.",
 });
 
 // ── Pure sub-component — avoids re-rendering the upload area on amount/txId change ──
@@ -171,13 +166,11 @@ export default function RechargeManual({ network }) {
 
     // Stable, SSR-safe IDs — avoids hydration mismatch from Math.random()
     const amountId = useId();
-    const txId_inputId = useId();
-    const txCounterId = useId();
     const errorId = useId();
     const slipLabelId = useId();
     const slipHintId = useId();
 
-    const [form, setForm] = useState({ amount: "", txId: "" });
+    const [form, setForm] = useState({ amount: "" });
     const [slip, setSlip] = useState(null);
     const [error, setError] = useState("");
     const submittingRef = useRef(false);
@@ -187,19 +180,10 @@ export default function RechargeManual({ network }) {
 
     // Derived — computed once, not on every keystroke
     const networkKey = network?.toUpperCase() ?? "";
-    const expectedTxLength = TX_ID_LENGTH[networkKey] ?? null;
-    const currentTxLength = form.txId.trim().length;
-    const txLengthValid = expectedTxLength
-        ? currentTxLength === expectedTxLength
-        : true;
 
     // ── Handlers ────────────────────────────────────────────────────────────
     const handleAmountChange = useCallback((e) => {
         setForm((prev) => ({ ...prev, amount: e.target.value }));
-    }, []);
-
-    const handleTxIdChange = useCallback((e) => {
-        setForm((prev) => ({ ...prev, txId: e.target.value }));
     }, []);
 
     const handleFileChange = useCallback((e) => {
@@ -210,7 +194,7 @@ export default function RechargeManual({ network }) {
 
     const handleModalClose = useCallback(() => {
         setModalOpen(false);
-        setForm({ amount: "", txId: "" });
+        setForm({ amount: "" });
         setSlip(null);
         setError("");
     }, []);
@@ -227,22 +211,10 @@ export default function RechargeManual({ network }) {
             if (submittingRef.current) return;
 
             const amount = form.amount.trim();
-            const txId = form.txId.trim();
 
             // ── Validation ─────────────────────────────────────────────────
             if (!amount || Number(amount) < MIN_AMOUNT) {
                 setError(`Amount must be at least ${MIN_AMOUNT} USDT.`);
-                return;
-            }
-            if (!txId) {
-                setError("Please provide the transaction ID.");
-                return;
-            }
-            if (expectedTxLength && txId.length !== expectedTxLength) {
-                setError(
-                    `Invalid ${networkKey} Transaction ID. ` +
-                    `Expected exactly ${expectedTxLength} characters (got ${txId.length}).`
-                );
                 return;
             }
             if (!slip) {
@@ -264,7 +236,6 @@ export default function RechargeManual({ network }) {
                 const payload = {
                     network,
                     amount,
-                    txId,
                     email: session?.user?.email ?? null,
                     userId: session?.user?.id ?? null,
                     name: session?.user?.name ?? null,
@@ -300,7 +271,7 @@ export default function RechargeManual({ network }) {
                 setSubmitting(false);
             }
         },
-        [form, slip, network, networkKey, expectedTxLength, session]
+        [form, slip, network, session]
     );
 
     // ── Render ───────────────────────────────────────────────────────────────
@@ -445,77 +416,6 @@ export default function RechargeManual({ network }) {
                                 />
                             </div>
 
-                            {/* ── Transaction ID ─────────────────────────── */}
-                            <div className="flex flex-col gap-1.5">
-                                <label
-                                    htmlFor={txId_inputId}
-                                    className="text-sm font-semibold text-slate-300"
-                                >
-                                    {networkKey} Transaction ID
-                                </label>
-                                <input
-                                    id={txId_inputId}
-                                    name="txId"
-                                    type="text"
-                                    autoComplete="off"
-                                    spellCheck="false"
-                                    required
-                                    // Browser-native length gate — no JS overhead
-                                    maxLength={expectedTxLength ?? undefined}
-                                    value={form.txId}
-                                    onChange={handleTxIdChange}
-                                    placeholder={
-                                        expectedTxLength
-                                            ? `${expectedTxLength}-character hash`
-                                            : "Enter transaction hash"
-                                    }
-                                    disabled={submitting}
-                                    aria-required="true"
-                                    aria-invalid={
-                                        error.includes("Transaction")
-                                            ? "true"
-                                            : undefined
-                                    }
-                                    aria-describedby={[
-                                        txCounterId,
-                                        error.includes("Transaction")
-                                            ? errorId
-                                            : "",
-                                    ]
-                                        .filter(Boolean)
-                                        .join(" ")}
-                                    className="
-                    w-full rounded-xl px-4 py-3.5
-                    bg-black/70 border border-white/10
-                    focus:border-yellow-400 focus:outline-none
-                    aria-[invalid=true]:border-red-500
-                    text-white placeholder:text-slate-600
-                    disabled:opacity-50
-                    transition-colors font-mono tracking-wide
-                  "
-                                />
-
-                                {/* Live character counter */}
-                                {expectedTxLength && (
-                                    <p
-                                        id={txCounterId}
-                                        aria-live="polite"
-                                        aria-atomic="true"
-                                        className={`text-xs text-right tabular-nums transition-colors ${txLengthValid
-                                                ? "text-green-400"
-                                                : "text-slate-500"
-                                            }`}
-                                    >
-                                        {currentTxLength} /{" "}
-                                        {expectedTxLength} chars
-                                        {txLengthValid && (
-                                            <span className="ml-1" aria-label="correct length">
-                                                ✓
-                                            </span>
-                                        )}
-                                    </p>
-                                )}
-                            </div>
 
                             {/* ── Slip Upload ───────────────────────────── */}
                             <SlipUpload
@@ -613,14 +513,9 @@ export default function RechargeManual({ network }) {
                                     </strong>{" "}
                                     transactions are accepted
                                 </li>
-                                {expectedTxLength && (
-                                    <li>
-                                        Transaction ID must be exactly{" "}
-                                        <strong className="text-white">
-                                            {expectedTxLength} characters
-                                        </strong>
-                                    </li>
-                                )}
+                                <li>
+                                    Upload your deposit slip and amount only — TXID is not required.
+                                </li>
                                 <li>
                                     Incorrect details may delay confirmation
                                 </li>

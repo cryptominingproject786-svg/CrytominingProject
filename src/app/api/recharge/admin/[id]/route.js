@@ -145,8 +145,7 @@ export async function PATCH(req, { params }) {
         await connectDB();
 
         const recharge = await Recharge.findById(id)
-            .select("status user amount txId slip")
-            .populate({ path: "user", select: "referredBy" })
+            .select("status user amount slip")
             .lean();
 
         if (!recharge) {
@@ -154,7 +153,7 @@ export async function PATCH(req, { params }) {
         }
 
         if (recharge.status === status) {
-            return NextResponse.json({ data: recharge }, { status: 200 });
+            return NextResponse.json({ data: { _id: id, status } }, { status: 200 });
         }
 
         if (recharge.status === "confirmed" && status !== "confirmed") {
@@ -170,29 +169,14 @@ export async function PATCH(req, { params }) {
             updates.confirmedAt = now;
         }
 
-        const updatedRecharge = await Recharge.findByIdAndUpdate(
-            id,
-            { $set: updates },
-            { new: true }
-        )
-            .populate("user", "username email phone balance investedAmount totalEarnings dailyProfit role")
-            .lean();
+        await Recharge.updateOne({ _id: id }, { $set: updates });
 
         if (status === "confirmed" && recharge.user) {
             const creditAmount = Number(recharge.amount);
             const bonusAmount = Math.round(creditAmount * REFERRAL_BONUS_RATE * 100) / 100;
-            const rechargeUser = recharge.user;
-            const isReferred = rechargeUser?.referredBy && mongoose.Types.ObjectId.isValid(rechargeUser.referredBy);
-            let shouldApplyReferralBonus = false;
-
-            if (isReferred) {
-                const existingBonus = await ReferralBonus.exists({
-                    parent: rechargeUser.referredBy,
-                    referredUser: rechargeUser._id,
-                    type: "firstReferralRechargeBonus",
-                });
-                shouldApplyReferralBonus = !existingBonus;
-            }
+            const rechargeUser = await User.findById(recharge.user)
+                .select("referredBy")
+                .lean();
 
             const childUpdates = {
                 $inc: {
@@ -201,18 +185,27 @@ export async function PATCH(req, { params }) {
                 $set: {
                     lastRechargeAt: now,
                     lastRechargeAmount: recharge.amount,
-                    lastRechargeTxId: recharge.txId,
                     lastRechargeSlipFilename: recharge.slip?.filename,
                     lastRechargeSlipSize: recharge.slip?.size,
                 },
             };
+
+            let shouldApplyReferralBonus = false;
+            if (rechargeUser?.referredBy && mongoose.Types.ObjectId.isValid(rechargeUser.referredBy)) {
+                const existingBonus = await ReferralBonus.exists({
+                    parent: rechargeUser.referredBy,
+                    referredUser: rechargeUser._id,
+                    type: "firstReferralRechargeBonus",
+                });
+                shouldApplyReferralBonus = !existingBonus;
+            }
 
             if (shouldApplyReferralBonus) {
                 childUpdates.$inc.totalEarnings = bonusAmount;
                 childUpdates.$inc.balance += bonusAmount;
             }
 
-            await User.updateOne({ _id: recharge.user._id || recharge.user }, childUpdates);
+            await User.updateOne({ _id: recharge.user }, childUpdates);
 
             if (shouldApplyReferralBonus) {
                 await Promise.all([
@@ -242,7 +235,7 @@ export async function PATCH(req, { params }) {
             }
         }
 
-        return NextResponse.json({ data: updatedRecharge }, { status: 200 });
+        return NextResponse.json({ data: { _id: id, status } }, { status: 200 });
 
     } catch (err) {
         console.error("PATCH ERROR:", err);

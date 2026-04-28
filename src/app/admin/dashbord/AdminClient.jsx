@@ -217,7 +217,9 @@ function reducer(state, action) {
             return {
                 ...state,
                 recharges: state.recharges.map((r) =>
-                    String(r._id) === String(action.payload._id) ? action.payload : r
+                    String(r._id) === String(action.payload._id)
+                        ? { ...r, ...action.payload }
+                        : r
                 ),
             };
 
@@ -320,7 +322,6 @@ const TABLE_COLS = [
     { key: "earnings", label: "Earnings" },
     { key: "dailyProfit", label: "Daily Profit" },
     { key: "amount", label: "Amount" },
-    { key: "txid", label: "TXID" },
     { key: "status", label: "Status" },
     { key: "slip", label: "Slip" },
     { key: "actions", label: "Actions" },
@@ -516,7 +517,6 @@ const PaginationControls = memo(function PaginationControls({
 const RechargeCard = memo(function RechargeCard({
     r,
     onPreview,
-    onCopy,
     onUpdate,
     onAdjust,
     busy,
@@ -620,18 +620,6 @@ const RechargeCard = memo(function RechargeCard({
                 </div>
             </dl>
 
-            {/* TXID full width */}
-            {r.txId && (
-                <div>
-                    <p className="text-[10px] uppercase tracking-widest text-slate-600 font-medium">
-                        TXID
-                    </p>
-                    <p className="font-mono text-xs text-slate-400 break-all mt-0.5">
-                        {r.txId}
-                    </p>
-                </div>
-            )}
-
             <div className="h-px bg-slate-800/70" />
 
             {/* Action buttons */}
@@ -643,13 +631,6 @@ const RechargeCard = memo(function RechargeCard({
                     className="flex-1 min-w-[70px] rounded-xl bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                     View Slip
-                </button>
-                <button
-                    type="button"
-                    onClick={() => onCopy(r.txId)}
-                    className="flex-1 min-w-[70px] rounded-xl bg-yellow-400 px-3 py-2 text-xs font-semibold text-slate-950 transition hover:bg-yellow-300 active:scale-95"
-                >
-                    Copy TX
                 </button>
                 <button
                     type="button"
@@ -695,7 +676,6 @@ const RowActions = memo(function RowActions({
     r,
     busy,
     onPreview,
-    onCopy,
     onUpdate,
     onAdjust,
 }) {
@@ -718,14 +698,6 @@ const RowActions = memo(function RowActions({
                 className="rounded-lg bg-slate-800 px-2 py-1.5 text-[10px] font-semibold text-slate-200 transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
                 Slip
-            </button>
-            <button
-                type="button"
-                onClick={() => onCopy(r.txId)}
-                title="Copy TX ID"
-                className="rounded-lg bg-yellow-400 px-2 py-1.5 text-[10px] font-semibold text-slate-950 transition hover:bg-yellow-300"
-            >
-                Copy TX
             </button>
             <button
                 type="button"
@@ -979,7 +951,6 @@ function exportToCsv(recharges) {
         "Daily Profit",
         "Amount",
         "Network",
-        "TXID",
         "Status",
         "Slip",
     ];
@@ -995,7 +966,6 @@ function exportToCsv(recharges) {
         r.user?.dailyProfit ?? "",
         r.amount ?? "",
         r.network ?? "",
-        r.txId ?? "",
         r.status ?? "",
         hasSlipData(r) ? "Yes" : "No",
     ]);
@@ -1229,10 +1199,6 @@ export default function AdminClient({ initialData }) {
         []
     );
 
-    const copyTx = useCallback((tx) => {
-        if (tx) navigator.clipboard.writeText(tx).catch(() => { });
-    }, []);
-
     const handleExport = useCallback(() => exportToCsv(recharges), [recharges]);
 
     const handlePrevPage = useCallback(() => {
@@ -1377,7 +1343,6 @@ export default function AdminClient({ initialData }) {
                                 key={r._id}
                                 r={r}
                                 onPreview={openPreview}
-                                onCopy={copyTx}
                                 onUpdate={updateStatus}
                                 onAdjust={openBalanceModal}
                                 busy={!!actionLoading[r._id]}
@@ -1402,7 +1367,6 @@ export default function AdminClient({ initialData }) {
                             <col style={{ width: "5%" }} />   {/* Earnings     */}
                             <col style={{ width: "6%" }} />   {/* Daily Profit */}
                             <col style={{ width: "4%" }} />   {/* Amount       */}
-                            <col style={{ width: "7%" }} />  {/* TXID         */}
                             <col style={{ width: "5%" }} />   {/* Status       */}
                             <col style={{ width: "4%" }} />   {/* Slip         */}
                             <col style={{ width: "12%" }} />  {/* Actions      */}
@@ -1471,12 +1435,6 @@ export default function AdminClient({ initialData }) {
                                         <td className="px-3 py-3 font-bold text-yellow-400 truncate">
                                             {fmtUsd(r.amount)}
                                         </td>
-                                        <td
-                                            className="px-3 py-3 font-mono text-slate-500 truncate"
-                                            title={r.txId}
-                                        >
-                                            {r.txId ? `${r.txId.slice(0, 10)}…` : "—"}
-                                        </td>
                                         <td className="px-3 py-3">
                                             <StatusBadge status={r.status} />
                                         </td>
@@ -1488,7 +1446,6 @@ export default function AdminClient({ initialData }) {
                                                 r={r}
                                                 busy={!!actionLoading[r._id]}
                                                 onPreview={openPreview}
-                                                onCopy={copyTx}
                                                 onUpdate={updateStatus}
                                                 onAdjust={openBalanceModal}
                                             />

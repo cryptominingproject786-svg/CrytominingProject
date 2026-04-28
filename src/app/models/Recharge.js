@@ -7,9 +7,10 @@ const RechargeSchema = new mongoose.Schema(
         amount: { type: Number, required: true },
         txId: {
             type: String,
-            required: true,
             trim: true,
             unique: true,
+            sparse: true,
+            default: undefined,
         },
 
 
@@ -34,5 +35,7 @@ const RechargeSchema = new mongoose.Schema(
 RechargeSchema.index({ user: 1, createdAt: -1 });
 // Optimize admin listing by created time when sorting latest recharges
 RechargeSchema.index({ createdAt: -1 });
+// Ensure missing txId values are excluded from the unique index
+RechargeSchema.index({ txId: 1 }, { unique: true, sparse: true });
 
 export default mongoose.models.Recharge || mongoose.model("Recharge", RechargeSchema);

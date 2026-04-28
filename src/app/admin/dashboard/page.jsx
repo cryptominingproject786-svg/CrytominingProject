@@ -26,7 +26,6 @@ async function AdminData() {
             : null,
         network: r.network,
         amount: r.amount,
-        txId: r.txId,
         status: r.status,
         createdAt: r.createdAt?.toISOString(),
         slip: { hasImage: !!r.slip?.contentType },

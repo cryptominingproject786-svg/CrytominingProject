@@ -6,6 +6,7 @@ import User from "../../models/User";
 import mongoose from "mongoose";
 import { getToken } from "next-auth/jwt";
 export const dynamic = 'force-dynamic';
+let rechargeIndexesSynced = false;
 
 export async function POST(req) {
     try {
@@ -20,11 +21,11 @@ export async function POST(req) {
         }
 
         const body = await req.json();
-        const { network, amount, txId, slip, email: submitterEmail, name: submitterName, userId: bodyUserId } = body || {};
+        const { network, amount, slip, email: submitterEmail, name: submitterName, userId: bodyUserId } = body || {};
 
-        if (!network || !amount || !txId || !slip?.data) {
-            console.warn("/api/recharge missing fields", { network, amount, txId, slipPresent: !!slip?.data });
-            return NextResponse.json({ error: "Missing fields: network, amount, txId, and slip are required" }, { status: 400 });
+        if (!network || !amount || !slip?.data) {
+            console.warn("/api/recharge missing fields", { network, amount, slipPresent: !!slip?.data });
+            return NextResponse.json({ error: "Missing fields: network, amount, and slip are required" }, { status: 400 });
         }
 
         const nAmount = Number(amount);
@@ -33,6 +34,18 @@ export async function POST(req) {
         }
 
         await connectDB();
+
+        // Ensure the txId index is sparse and old null values are removed only once per server process.
+        if (!rechargeIndexesSynced) {
+            try {
+                await Recharge.updateMany({ txId: null }, { $unset: { txId: "" } });
+                await Recharge.updateMany({ txId: "" }, { $unset: { txId: "" } });
+                await Recharge.syncIndexes();
+                rechargeIndexesSynced = true;
+            } catch (syncError) {
+                console.warn("/api/recharge: index sync failed", syncError);
+            }
+        }
 
         // Optionally associate with an authenticated user
         let userId;
@@ -92,25 +105,10 @@ export async function POST(req) {
         if (buffer.length > MAX_BYTES) {
             return NextResponse.json({ error: "Image too large" }, { status: 413 });
         }
-        // 🔒 Prevent duplicate recharge by txId
-        const existingRecharge = await Recharge.findOne({
-            txId: txId.trim(),
-            amount: nAmount,
-        });
-
-        if (existingRecharge) {
-            return NextResponse.json(
-                { error: "Recharge with this TxID already submitted" },
-                { status: 400 }
-            );
-        }
-
-
         const recharge = await Recharge.create({
             user: userId,
             network,
             amount: nAmount,
-            txId,
             submitterEmail: submitterEmail ? String(submitterEmail).trim().toLowerCase() : undefined,
             submitterName: submitterName ? String(submitterName).trim() : undefined,
             slip: { data: buffer, contentType, filename, size: buffer.length },
@@ -119,7 +117,6 @@ export async function POST(req) {
         console.info("/api/recharge created", {
             id: recharge._id.toString(),
             userId: userId ? String(userId) : null,
-            txId: recharge.txId,
             amount: recharge.amount,
             slipFilename: recharge.slip?.filename,
             slipSize: recharge.slip?.size,

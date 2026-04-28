@@ -81,7 +81,6 @@ export async function GET(req) {
                 : null,
             amount: r.amount,
             network: r.network,
-            txId: r.txId,
             status: r.status,
             createdAt: r.createdAt,
             // Only expose whether a slip exists — never send binary data in list view
