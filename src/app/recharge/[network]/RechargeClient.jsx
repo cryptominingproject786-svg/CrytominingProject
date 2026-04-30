@@ -7,20 +7,20 @@ import RechargeManual from "./RechargeManual";
 // ─── Network config ────────────────────────────────────────────────────────────
 const NETWORK_CONFIG = {
     TRC20: {
-        address: "TFyLapV8rYyp155f7ZQNDxasZhAvFUy8eG",
+        address: "TN2P66cwxLUy9eCJiXFNki3ViRUJ83KC6o",
         logo: "/TRC.png",
         label: "TRC20-USDT",
         color: "text-red-400",
         bg: "bg-red-400/10",
-        qr: "/TR20QR.jpeg",
+        qr: "/TRC20Qr.jpeg",
     },
     BEP20: {
-        address: "0xff2222bd53be58e8900e84e9e7fd54e647cc5d02",
+        address: "0xaeff4606750ad9ac89c3f2b9eada02766ab50977",
         logo: "/TRC.png",          // add your BEP20 logo to /public
         label: "BEP20-USDT",
         color: "text-yellow-400",
         bg: "bg-yellow-400/10",
-        qr: "/Bep20QR.jpeg",       // add your BEP20 QR to /public
+        qr: "/BEP20Qr.jpeg",       // add your BEP20 QR to /public
     },
 };
 

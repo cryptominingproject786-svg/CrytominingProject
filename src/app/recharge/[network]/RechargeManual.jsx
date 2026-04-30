@@ -1,21 +1,5 @@
 "use client";
 
-/**
- * RechargeManual — Deposit proof submission form
- * -----------------------------------------------
- * Optimizations applied:
- *  • TX_ID_LENGTH map hoisted outside component (no re-creation per render)
- *  • useId() for stable, SSR-safe form IDs (avoids hydration mismatch)
- *  • maxLength on TX input — browser-level gate, no JS needed
- *  • aria-invalid / aria-describedby wired to every input
- *  • aria-live="polite" error region — screen-reader friendly
- *  • Semantic landmark hierarchy: <header> → <main> → <section> → <form>
- *  • All callbacks wrapped in useCallback / stable references
- *  • No inline object/function literals in JSX props
- *  • Image priority + correct sizes prop for LCP optimisation
- *  • structuredData JSON-LD injected for SEO
- */
-
 import { useState, useRef, useCallback, useId, memo } from "react";
 import Image from "next/image";
 import Script from "next/script";
