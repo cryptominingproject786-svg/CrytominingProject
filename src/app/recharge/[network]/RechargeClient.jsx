@@ -20,7 +20,7 @@ const NETWORK_CONFIG = {
         label: "BEP20-USDT",
         color: "text-yellow-400",
         bg: "bg-yellow-400/10",
-        qr: "/BEP20Qr.jpeg",       // add your BEP20 QR to /public
+        qr: "/bep20qr.jpeg",       // file names are case-sensitive in production
     },
 };
 
