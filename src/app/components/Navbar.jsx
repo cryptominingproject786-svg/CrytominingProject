@@ -449,39 +449,12 @@ const MobileNavItem = memo(function MobileNavItem({ href, onClick, icon, childre
     );
 });
 
-const MobileBottomBar = memo(function MobileBottomBar({ isRegularUser, isAdmin }) {
-    const accountHref = isAdmin ? "/admin/dashboard" : isRegularUser ? "/dashboard" : "/join";
-    const accountLabel = isAdmin ? "Admin" : isRegularUser ? "Account" : "Join";
-
-    const items = [
-        { href: "/", label: "Home", icon: "🏠" },
-        { href: "/mining", label: "Mining", icon: "⛏️" },
-        { href: "/privacy", label: "Privacy", icon: "🔒" },
-        { href: accountHref, label: accountLabel, icon: "👤" },
-    ];
-
-    return (
-        <div className="nav-bottom-bar" role="navigation" aria-label="Mobile navigation">
-            {items.map((item) => (
-                <Link
-                    key={item.href}
-                    href={item.href}
-                    className="nav-bottom-link"
-                    aria-label={item.label}
-                >
-                    <span className="nav-bottom-icon" aria-hidden="true">{item.icon}</span>
-                    <span>{item.label}</span>
-                </Link>
-            ))}
-        </div>
-    );
-});
-
 // ── Navbar ────────────────────────────────────────────────────────────────────
 
 export default function Navbar() {
     const { data: session, status } = useSession();
 
+    const [isOpen, setIsOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
     const [profile, dispatchProfile] = useReducer(profileReducer, PROFILE_INIT);
 
@@ -543,10 +516,13 @@ export default function Navbar() {
         return () => { canceled = true; };
     }, [status, session?.user?.role, session?.user?.email]);
 
+    const closeDrawer = useCallback(() => setIsOpen(false), []);
+    const toggleDrawer = useCallback(() => setIsOpen((p) => !p), []);
     const closeProfile = useCallback(() => setProfileOpen(false), []);
     const toggleProfile = useCallback(() => setProfileOpen((p) => !p), []);
 
     const handleLogout = useCallback(async () => {
+        setIsOpen(false);
         await signOut({ redirect: true, callbackUrl: "/" });
     }, []);
 
@@ -559,51 +535,33 @@ export default function Navbar() {
         return () => document.removeEventListener("mousedown", handler);
     }, []);
 
+    useEffect(() => {
+        const handler = () => { if (window.innerWidth >= 768) setIsOpen(false); };
+        window.addEventListener("resize", handler, { passive: true });
+        return () => window.removeEventListener("resize", handler);
+    }, []);
+
+    useEffect(() => {
+        document.body.style.overflow = isOpen ? "hidden" : "";
+        return () => { document.body.style.overflow = ""; };
+    }, [isOpen]);
+
     // ── Render ────────────────────────────────────────────────────────────────
     return (
         <>
             <link rel="preload" as="image" href={BANNER_SRC} fetchPriority="high" />
 
             <style>{`
-                .nav-bottom-bar {
-                    position: fixed;
-                    inset: auto 0 0 0;
-                    z-index: 60;
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    gap: 8px;
-                    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
-                    background: rgba(8, 8, 8, 0.96);
-                    backdrop-filter: blur(18px);
-                    border-top: 1px solid rgba(255,255,255,0.08);
+                .nav-mobile-link {
+                    display: flex; align-items: center; gap: 10px;
+                    padding: 12px 14px; border-radius: 10px;
+                    color: rgba(255,255,255,0.8); text-decoration: none;
+                    font-size: 14px; font-weight: 600; letter-spacing: 0.02em;
+                    text-transform: uppercase; transition: background 0.15s, color 0.15s;
                 }
-                .nav-bottom-link {
-                    flex: 1 1 0;
-                    min-width: 0;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 4px;
-                    padding: 10px 6px;
-                    border-radius: 18px;
-                    color: rgba(255,255,255,0.78);
-                    text-decoration: none;
-                    font-size: 10.75px;
-                    font-weight: 700;
-                    letter-spacing: 0.02em;
-                    transition: background 0.15s, color 0.15s, transform 0.15s;
-                }
-                .nav-bottom-link:hover {
-                    background: rgba(255,255,255,0.06);
+                .nav-mobile-link:hover {
+                    background: rgba(234,179,8,0.08);
                     color: #EAB308;
-                    transform: translateY(-1px);
-                }
-                .nav-bottom-icon {
-                    display: inline-flex;
-                    font-size: 18px;
-                    line-height: 1;
                 }
             `}</style>
 
@@ -694,21 +652,171 @@ export default function Navbar() {
                     />
                 </div>
 
+                {/* ── Mobile: Hamburger ── */}
+                <button
+                    onClick={toggleDrawer}
+                    aria-label={isOpen ? "Close menu" : "Open menu"}
+                    aria-expanded={isOpen}
+                    aria-controls="mobile-drawer"
+                    className="nav-mobile-hamburger"
+                    style={{
+                        position: "relative", zIndex: 10,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        width: "38px", height: "38px", borderRadius: "9px",
+                        background: "rgba(255,255,255,0.06)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        color: "#fff", cursor: "pointer",
+                        transition: "background 0.2s, border-color 0.2s",
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.background = "rgba(234,179,8,0.12)";
+                        e.currentTarget.style.borderColor = "rgba(234,179,8,0.3)";
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
+                    }}
+                >
+                    <IconMenu open={isOpen} />
+                </button>
+
                 {/* Responsive CSS */}
                 <style>{`
                     @media (min-width: 768px) {
                         .nav-desktop-links { display: flex !important; }
                         .nav-desktop-auth  { display: flex !important; }
-                        .nav-bottom-bar    { display: none !important; }
+                        .nav-mobile-hamburger { display: none !important; }
                         nav { padding: 0 40px !important; }
                     }
                 `}</style>
             </nav>
 
-            <MobileBottomBar
-                isRegularUser={isRegularUser}
-                isAdmin={isAdmin}
+            {/* ── Mobile: Backdrop ── */}
+            <div
+                aria-hidden="true"
+                onClick={closeDrawer}
+                style={{
+                    position: "fixed", inset: 0,
+                    background: "rgba(0,0,0,0.6)",
+                    backdropFilter: "blur(4px)",
+                    zIndex: 40,
+                    transition: "opacity 0.3s ease",
+                    opacity: isOpen ? 1 : 0,
+                    pointerEvents: isOpen ? "auto" : "none",
+                }}
             />
+
+            {/* ── Mobile: Slide-in drawer ── */}
+            <div
+                id="mobile-drawer"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Mobile navigation menu"
+                style={{
+                    position: "fixed", top: 0, right: 0,
+                    height: "100%", width: "300px", maxWidth: "88vw",
+                    background: "rgba(8, 8, 8, 0.98)",
+                    backdropFilter: "blur(20px)",
+                    borderLeft: "1px solid rgba(255,255,255,0.07)",
+                    zIndex: 50,
+                    display: "flex", flexDirection: "column",
+                    boxShadow: "-20px 0 60px rgba(0,0,0,0.6)",
+                    transition: "transform 0.32s cubic-bezier(0.32, 0.72, 0, 1)",
+                    transform: isOpen ? "translateX(0)" : "translateX(100%)",
+                }}
+            >
+                {/* Drawer header */}
+                <div style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "0 20px", height: "68px",
+                    borderBottom: "1px solid rgba(255,255,255,0.06)",
+                }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{
+                            fontSize: "15px", fontWeight: 800,
+                            letterSpacing: "0.08em",
+                            background: "linear-gradient(135deg, #fff 40%, #EAB308 100%)",
+                            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                            backgroundClip: "text",
+                        }}>
+                            BittXS
+                        </span>
+                    </div>
+                    <button
+                        onClick={closeDrawer}
+                        aria-label="Close menu"
+                        style={{
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            width: "34px", height: "34px", borderRadius: "8px",
+                            background: "rgba(255,255,255,0.06)",
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            color: "rgba(255,255,255,0.7)", cursor: "pointer",
+                            transition: "background 0.15s, color 0.15s",
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.background = "rgba(239,68,68,0.12)";
+                            e.currentTarget.style.color = "#f87171";
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                            e.currentTarget.style.color = "rgba(255,255,255,0.7)";
+                        }}
+                    >
+                        <IconClose />
+                    </button>
+                </div>
+
+                {/* Nav links */}
+                <nav aria-label="Mobile navigation links" style={{ padding: "16px 12px 8px" }}>
+                    <p style={{
+                        fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em",
+                        color: "rgba(255,255,255,0.3)", textTransform: "uppercase",
+                        padding: "0 14px", marginBottom: "6px",
+                    }}>
+                        Navigation
+                    </p>
+                    {NAV_LINKS.map(({ href, label }) => (
+                        <Link
+                            key={href}
+                            href={href}
+                            onClick={closeDrawer}
+                            className="nav-mobile-link"
+                        >
+                            {label}
+                        </Link>
+                    ))}
+                </nav>
+
+                <div style={{ height: "1px", background: "rgba(255,255,255,0.05)", margin: "4px 12px" }} />
+
+                {/* Auth section */}
+                <div style={{ padding: "12px 12px", flex: 1 }}>
+                    <p style={{
+                        fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em",
+                        color: "rgba(255,255,255,0.3)", textTransform: "uppercase",
+                        padding: "0 14px", marginBottom: "8px",
+                    }}>
+                        Account
+                    </p>
+                    <MobileAuth
+                        isRegularUser={isRegularUser}
+                        isAdmin={isAdmin}
+                        displayName={displayName}
+                        onClose={closeDrawer}
+                        onLogout={handleLogout}
+                    />
+                </div>
+
+                {/* Drawer footer */}
+                <div style={{
+                    padding: "16px 20px",
+                    borderTop: "1px solid rgba(255,255,255,0.05)",
+                }}>
+                    <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.2)", margin: 0, letterSpacing: "0.02em" }}>
+                        © {new Date().getFullYear()} BittXS. All rights reserved.
+                    </p>
+                </div>
+            </div>
         </>
     );
 }
