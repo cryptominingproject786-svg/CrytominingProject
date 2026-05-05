@@ -53,43 +53,106 @@ const IconChevron = memo(function IconChevron({ open }) {
     );
 });
 
-const IconClose = memo(function IconClose() {
+const IconHome = memo(function IconHome() {
     return (
-        <svg aria-hidden="true" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
+            <path d="M3 11.5L12 4l9 7.5" />
+            <path d="M9 21V12h6v9" />
+            <path d="M21 11.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-8.5" />
         </svg>
     );
 });
 
-const IconMenu = memo(function IconMenu({ open }) {
+const IconMining = memo(function IconMining() {
     return (
-        <div className="flex flex-col justify-center items-center w-5 h-5 gap-[5px]">
-            <span
-                style={{
-                    display: "block", width: "20px", height: "1.5px",
-                    background: "currentColor", borderRadius: "2px",
-                    transition: "transform 0.3s ease, opacity 0.3s ease",
-                    transform: open ? "rotate(45deg) translateY(6.5px)" : "none",
-                }}
-            />
-            <span
-                style={{
-                    display: "block", width: "20px", height: "1.5px",
-                    background: "currentColor", borderRadius: "2px",
-                    transition: "opacity 0.3s ease, transform 0.3s ease",
-                    opacity: open ? 0 : 1,
-                    transform: open ? "scaleX(0)" : "none",
-                }}
-            />
-            <span
-                style={{
-                    display: "block", width: "20px", height: "1.5px",
-                    background: "currentColor", borderRadius: "2px",
-                    transition: "transform 0.3s ease, opacity 0.3s ease",
-                    transform: open ? "rotate(-45deg) translateY(-6.5px)" : "none",
-                }}
-            />
-        </div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
+            <path d="M4 20l7-7 3 3 7-7" />
+            <path d="M5 20l4-4" />
+            <path d="M14 9l4-4" />
+            <path d="M11 12l5-5" />
+        </svg>
+    );
+});
+
+const IconDashboard = memo(function IconDashboard() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
+        </svg>
+    );
+});
+
+const IconSignIn = memo(function IconSignIn() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
+            <path d="M10 17l5-5-5-5" />
+            <path d="M15 12H4" />
+            <path d="M20 19V5" />
+            <path d="M17 5h3v14h-3" />
+        </svg>
+    );
+});
+
+const IconSignUp = memo(function IconSignUp() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
+            <path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
+            <path d="M4 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2" />
+            <path d="M18 8h4" />
+            <path d="M20 6v4" />
+        </svg>
+    );
+});
+
+const IconPrivacy = memo(function IconPrivacy() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
+            <path d="M12 3l7 4v5a7 7 0 0 1-14 0V7l7-4z" />
+            <path d="M12 11v4" />
+            <path d="M12 17h.01" />
+        </svg>
+    );
+});
+
+const IconAbout = memo(function IconAbout() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 16v-4" />
+            <path d="M12 8h.01" />
+        </svg>
+    );
+});
+
+const IconSettings = memo(function IconSettings() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+    );
+});
+
+const IconLogout = memo(function IconLogout() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <path d="M16 17l5-5-5-5" />
+            <path d="M16 12H9" />
+        </svg>
+    );
+});
+
+const IconMore = memo(function IconMore() {
+    return (
+        <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 18, height: 18 }}>
+            <circle cx="6" cy="12" r="1.5" />
+            <circle cx="12" cy="12" r="1.5" />
+            <circle cx="18" cy="12" r="1.5" />
+        </svg>
     );
 });
 
@@ -121,17 +184,29 @@ const Avatar = memo(function Avatar({ initial, isAdmin, size = "sm" }) {
 // ── DropdownMenu ──────────────────────────────────────────────────────────────
 
 const DropdownMenu = memo(function DropdownMenu({ isAdmin, onClose, onLogout }) {
+    const itemStyles = {
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+    };
+
+    const iconSlot = (icon) => (
+        <span style={{ display: "inline-flex", width: 18, height: 18, alignItems: "center", justifyContent: "center" }}>
+            {icon}
+        </span>
+    );
+
     return (
         <div
             role="menu"
             style={{
                 position: "absolute", right: 0, top: "calc(100% + 12px)",
-                width: "192px",
+                width: "212px",
                 background: "rgba(10, 10, 10, 0.95)",
                 border: "1px solid rgba(234,179,8,0.15)",
-                borderRadius: "12px",
+                borderRadius: "16px",
                 boxShadow: "0 20px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
-                padding: "6px",
+                padding: "8px",
                 zIndex: 50,
                 backdropFilter: "blur(20px)",
                 animation: "dropIn 0.18s ease",
@@ -143,35 +218,35 @@ const DropdownMenu = memo(function DropdownMenu({ isAdmin, onClose, onLogout }) 
                     to   { opacity: 1; transform: translateY(0) scale(1); }
                 }
                 .dd-item {
-                    display: block; padding: 9px 12px;
-                    font-size: 13px; font-weight: 500; border-radius: 8px;
+                    display: block; padding: 11px 14px;
+                    font-size: 13px; font-weight: 550; border-radius: 12px;
                     color: #e5e5e5; text-decoration: none;
-                    transition: background 0.15s, color 0.15s;
+                    transition: background 0.2s, color 0.2s;
                     cursor: pointer; width: 100%; text-align: left;
                     background: transparent; border: none;
                     letter-spacing: 0.01em;
                 }
                 .dd-item:hover { background: rgba(234,179,8,0.12); color: #EAB308; }
-                .dd-item-danger:hover { background: rgba(239,68,68,0.12); color: #f87171; }
+                .dd-item-danger:hover { background: rgba(239,68,68,0.14); color: #f87171; }
             `}</style>
 
             {isAdmin ? (
-                <Link role="menuitem" href="/admin/dashboard" onClick={onClose} className="dd-item">
-                    ⚡ Admin Dashboard
+                <Link role="menuitem" href="/admin/dashboard" onClick={onClose} className="dd-item" style={itemStyles}>
+                    {iconSlot(<IconDashboard />)} Admin Dashboard
                 </Link>
             ) : (
                 <>
-                    <Link role="menuitem" href="/dashboard" onClick={onClose} className="dd-item">
-                        Dashboard
+                    <Link role="menuitem" href="/dashboard" onClick={onClose} className="dd-item" style={itemStyles}>
+                        {iconSlot(<IconDashboard />)} Dashboard
                     </Link>
-                    <Link role="menuitem" href="/settings" onClick={onClose} className="dd-item">
-                        Settings
+                    <Link role="menuitem" href="/settings" onClick={onClose} className="dd-item" style={itemStyles}>
+                        {iconSlot(<IconSettings />)} Settings
                     </Link>
                 </>
             )}
-            <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", margin: "4px 0" }} />
-            <button role="menuitem" onClick={onLogout} className="dd-item dd-item-danger">
-                Sign Out
+            <div style={{ height: "1px", background: "rgba(255,255,255,0.08)", margin: "6px 0" }} />
+            <button role="menuitem" type="button" onClick={onLogout} className="dd-item dd-item-danger" style={itemStyles}>
+                {iconSlot(<IconLogout />)} Sign Out
             </button>
         </div>
     );
@@ -319,133 +394,106 @@ const DesktopAuth = memo(function DesktopAuth({
     );
 });
 
-// ── MobileAuth ────────────────────────────────────────────────────────────────
+// ── Mobile bottom bar ───────────────────────────────────────────────────────
 
-const MobileAuth = memo(function MobileAuth({
-    isRegularUser, isAdmin, displayName, onClose, onLogout,
-}) {
-    const initial = displayName ? displayName.charAt(0).toUpperCase() : "?";
+const MobileBottomBar = memo(function MobileBottomBar({ isRegularUser, isAdmin, onLogout }) {
+    const [moreOpen, setMoreOpen] = useState(false);
+    const moreRef = useRef(null);
 
-    if (isRegularUser || isAdmin) {
-        return (
-            <div>
-                {/* User card */}
-                <div style={{
-                    display: "flex", alignItems: "center", gap: "12px",
-                    padding: "12px 14px", marginBottom: "8px",
-                    background: "rgba(234,179,8,0.06)",
-                    border: "1px solid rgba(234,179,8,0.12)",
-                    borderRadius: "12px",
-                }}>
-                    <Avatar initial={initial} isAdmin={isAdmin} size="lg" />
-                    <div>
-                        <p style={{ color: "#fff", fontWeight: 700, fontSize: "14px", margin: 0, letterSpacing: "0.01em" }}>
-                            {displayName}
-                        </p>
-                        <p style={{ color: isAdmin ? "#f87171" : "#EAB308", fontSize: "11px", fontWeight: 600, margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                            {isAdmin ? "Administrator" : "Member"}
-                        </p>
-                    </div>
-                </div>
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (moreRef.current && !moreRef.current.contains(event.target)) {
+                setMoreOpen(false);
+            }
+        };
 
-                {isAdmin ? (
-                    <MobileNavItem href="/admin/dashboard" onClick={onClose} icon="⚡">Admin Dashboard</MobileNavItem>
-                ) : (
-                    <>
-                        <MobileNavItem href="/dashboard" onClick={onClose} icon="▦">Dashboard</MobileNavItem>
-                        <MobileNavItem href="/settings" onClick={onClose} icon="⚙">Settings</MobileNavItem>
-                    </>
-                )}
-                <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", margin: "8px 0" }} />
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const baseLinks = [
+        { href: "/", label: "Home", icon: <IconHome /> },
+        { href: "/mining", label: "Mining", icon: <IconMining /> },
+    ];
+
+    const accountLinks = isRegularUser || isAdmin
+        ? [{ href: isAdmin ? "/admin/dashboard" : "/dashboard", label: "Dashboard", icon: <IconDashboard /> }]
+        : [
+            { href: "/join", label: "Sign In", icon: <IconSignIn /> },
+            { href: "/signup", label: "Sign Up", icon: <IconSignUp /> },
+        ];
+
+    const extraLinks = [
+        { href: "/privacy", label: "Privacy", icon: <IconPrivacy /> },
+        { href: "/about", label: "About Us", icon: <IconAbout /> },
+        ...(isRegularUser || isAdmin ? [{ href: "/settings", label: "Settings", icon: <IconSettings /> }] : []),
+        ...(isRegularUser || isAdmin ? [{ type: "logout", label: "Sign Out", icon: <IconLogout /> }] : []),
+    ];
+
+    const navItems = [...baseLinks, ...accountLinks];
+
+    return (
+        <div ref={moreRef} style={{ position: "relative", zIndex: 70 }}>
+            <div className="nav-bottom-bar" role="navigation" aria-label="Mobile navigation">
+                {navItems.map((item) => (
+                    <Link
+                        key={item.href}
+                        href={item.href}
+                        className="nav-bottom-link"
+                        aria-label={item.label}
+                    >
+                        <span className="nav-bottom-icon" aria-hidden="true">{item.icon}</span>
+                        <span>{item.label}</span>
+                    </Link>
+                ))}
                 <button
-                    onClick={onLogout}
-                    style={{
-                        width: "100%", textAlign: "left",
-                        display: "flex", alignItems: "center", gap: "10px",
-                        padding: "12px 14px", borderRadius: "10px",
-                        background: "transparent", border: "none",
-                        color: "#f87171", fontSize: "14px", fontWeight: 600,
-                        cursor: "pointer", letterSpacing: "0.01em",
-                        transition: "background 0.2s",
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = "rgba(239,68,68,0.1)"}
-                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                    type="button"
+                    className="nav-bottom-link nav-bottom-more-button"
+                    aria-haspopup="menu"
+                    aria-expanded={moreOpen}
+                    onClick={() => setMoreOpen((open) => !open)}
                 >
-                    <span style={{ fontSize: "16px" }}>↩</span> Sign Out
+                    <span className="nav-bottom-icon" aria-hidden="true"><IconMore /></span>
+                    <span>More</span>
                 </button>
             </div>
-        );
-    }
+            {moreOpen && (
+                <div className="nav-bottom-dropdown" role="menu" aria-label="More navigation links">
+                    {extraLinks.map((item) => {
+                        if (item.type === "logout") {
+                            return (
+                                <button
+                                    key="logout"
+                                    type="button"
+                                    className="nav-bottom-dropdown-link"
+                                    role="menuitem"
+                                    onClick={() => {
+                                        setMoreOpen(false);
+                                        onLogout();
+                                    }}
+                                >
+                                    <span className="nav-bottom-dropdown-icon" aria-hidden="true">{item.icon}</span>
+                                    {item.label}
+                                </button>
+                            );
+                        }
 
-    return (
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <Link
-                href="/join"
-                onClick={onClose}
-                style={{
-                    display: "block", textAlign: "center",
-                    padding: "13px", borderRadius: "10px",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    color: "#fff", textDecoration: "none",
-                    fontSize: "14px", fontWeight: 600,
-                    transition: "background 0.2s, border-color 0.2s",
-                }}
-                onMouseEnter={e => {
-                    e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
-                }}
-                onMouseLeave={e => {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
-                }}
-            >
-                Sign In
-            </Link>
-            <Link
-                href="/signup"
-                onClick={onClose}
-                style={{
-                    display: "block", textAlign: "center",
-                    padding: "13px", borderRadius: "10px",
-                    background: "linear-gradient(135deg, #EAB308, #CA8A04)",
-                    color: "#000", textDecoration: "none",
-                    fontSize: "14px", fontWeight: 700,
-                    boxShadow: "0 4px 16px rgba(234,179,8,0.3)",
-                }}
-            >
-                Get Started →
-            </Link>
+                        return (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                className="nav-bottom-dropdown-link"
+                                role="menuitem"
+                                onClick={() => setMoreOpen(false)}
+                            >
+                                <span className="nav-bottom-dropdown-icon" aria-hidden="true">{item.icon}</span>
+                                {item.label}
+                            </Link>
+                        );
+                    })}
+                </div>
+            )}
         </div>
-    );
-});
-
-// ── MobileNavItem helper ──────────────────────────────────────────────────────
-
-const MobileNavItem = memo(function MobileNavItem({ href, onClick, icon, children }) {
-    return (
-        <Link
-            href={href}
-            onClick={onClick}
-            style={{
-                display: "flex", alignItems: "center", gap: "10px",
-                padding: "12px 14px", borderRadius: "10px",
-                color: "rgba(255,255,255,0.85)", textDecoration: "none",
-                fontSize: "14px", fontWeight: 600,
-                transition: "background 0.15s, color 0.15s",
-                letterSpacing: "0.01em",
-            }}
-            onMouseEnter={e => {
-                e.currentTarget.style.background = "rgba(234,179,8,0.08)";
-                e.currentTarget.style.color = "#EAB308";
-            }}
-            onMouseLeave={e => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "rgba(255,255,255,0.85)";
-            }}
-        >
-            <span style={{ fontSize: "15px", opacity: 0.7 }}>{icon}</span>
-            {children}
-        </Link>
     );
 });
 
@@ -454,7 +502,6 @@ const MobileNavItem = memo(function MobileNavItem({ href, onClick, icon, childre
 export default function Navbar() {
     const { data: session, status } = useSession();
 
-    const [isOpen, setIsOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
     const [profile, dispatchProfile] = useReducer(profileReducer, PROFILE_INIT);
 
@@ -516,13 +563,10 @@ export default function Navbar() {
         return () => { canceled = true; };
     }, [status, session?.user?.role, session?.user?.email]);
 
-    const closeDrawer = useCallback(() => setIsOpen(false), []);
-    const toggleDrawer = useCallback(() => setIsOpen((p) => !p), []);
     const closeProfile = useCallback(() => setProfileOpen(false), []);
     const toggleProfile = useCallback(() => setProfileOpen((p) => !p), []);
 
     const handleLogout = useCallback(async () => {
-        setIsOpen(false);
         await signOut({ redirect: true, callbackUrl: "/" });
     }, []);
 
@@ -535,16 +579,6 @@ export default function Navbar() {
         return () => document.removeEventListener("mousedown", handler);
     }, []);
 
-    useEffect(() => {
-        const handler = () => { if (window.innerWidth >= 768) setIsOpen(false); };
-        window.addEventListener("resize", handler, { passive: true });
-        return () => window.removeEventListener("resize", handler);
-    }, []);
-
-    useEffect(() => {
-        document.body.style.overflow = isOpen ? "hidden" : "";
-        return () => { document.body.style.overflow = ""; };
-    }, [isOpen]);
 
     // ── Render ────────────────────────────────────────────────────────────────
     return (
@@ -552,16 +586,9 @@ export default function Navbar() {
             <link rel="preload" as="image" href={BANNER_SRC} fetchPriority="high" />
 
             <style>{`
-                .nav-mobile-link {
-                    display: flex; align-items: center; gap: 10px;
-                    padding: 12px 14px; border-radius: 10px;
-                    color: rgba(255,255,255,0.8); text-decoration: none;
-                    font-size: 14px; font-weight: 600; letter-spacing: 0.02em;
-                    text-transform: uppercase; transition: background 0.15s, color 0.15s;
-                }
-                .nav-mobile-link:hover {
-                    background: rgba(234,179,8,0.08);
-                    color: #EAB308;
+                @media (min-width: 768px) {
+                    .nav-desktop-links { display: flex !important; }
+                    .nav-desktop-auth  { display: flex !important; }
                 }
             `}</style>
 
@@ -652,171 +679,16 @@ export default function Navbar() {
                     />
                 </div>
 
-                {/* ── Mobile: Hamburger ── */}
-                <button
-                    onClick={toggleDrawer}
-                    aria-label={isOpen ? "Close menu" : "Open menu"}
-                    aria-expanded={isOpen}
-                    aria-controls="mobile-drawer"
-                    className="nav-mobile-hamburger"
-                    style={{
-                        position: "relative", zIndex: 10,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        width: "38px", height: "38px", borderRadius: "9px",
-                        background: "rgba(255,255,255,0.06)",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                        color: "#fff", cursor: "pointer",
-                        transition: "background 0.2s, border-color 0.2s",
-                    }}
-                    onMouseEnter={e => {
-                        e.currentTarget.style.background = "rgba(234,179,8,0.12)";
-                        e.currentTarget.style.borderColor = "rgba(234,179,8,0.3)";
-                    }}
-                    onMouseLeave={e => {
-                        e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
-                    }}
-                >
-                    <IconMenu open={isOpen} />
-                </button>
-
                 {/* Responsive CSS */}
                 <style>{`
                     @media (min-width: 768px) {
                         .nav-desktop-links { display: flex !important; }
                         .nav-desktop-auth  { display: flex !important; }
-                        .nav-mobile-hamburger { display: none !important; }
-                        nav { padding: 0 40px !important; }
                     }
                 `}</style>
             </nav>
 
-            {/* ── Mobile: Backdrop ── */}
-            <div
-                aria-hidden="true"
-                onClick={closeDrawer}
-                style={{
-                    position: "fixed", inset: 0,
-                    background: "rgba(0,0,0,0.6)",
-                    backdropFilter: "blur(4px)",
-                    zIndex: 40,
-                    transition: "opacity 0.3s ease",
-                    opacity: isOpen ? 1 : 0,
-                    pointerEvents: isOpen ? "auto" : "none",
-                }}
-            />
-
-            {/* ── Mobile: Slide-in drawer ── */}
-            <div
-                id="mobile-drawer"
-                role="dialog"
-                aria-modal="true"
-                aria-label="Mobile navigation menu"
-                style={{
-                    position: "fixed", top: 0, right: 0,
-                    height: "100%", width: "300px", maxWidth: "88vw",
-                    background: "rgba(8, 8, 8, 0.98)",
-                    backdropFilter: "blur(20px)",
-                    borderLeft: "1px solid rgba(255,255,255,0.07)",
-                    zIndex: 50,
-                    display: "flex", flexDirection: "column",
-                    boxShadow: "-20px 0 60px rgba(0,0,0,0.6)",
-                    transition: "transform 0.32s cubic-bezier(0.32, 0.72, 0, 1)",
-                    transform: isOpen ? "translateX(0)" : "translateX(100%)",
-                }}
-            >
-                {/* Drawer header */}
-                <div style={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: "0 20px", height: "68px",
-                    borderBottom: "1px solid rgba(255,255,255,0.06)",
-                }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span style={{
-                            fontSize: "15px", fontWeight: 800,
-                            letterSpacing: "0.08em",
-                            background: "linear-gradient(135deg, #fff 40%, #EAB308 100%)",
-                            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-                            backgroundClip: "text",
-                        }}>
-                            BittXS
-                        </span>
-                    </div>
-                    <button
-                        onClick={closeDrawer}
-                        aria-label="Close menu"
-                        style={{
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            width: "34px", height: "34px", borderRadius: "8px",
-                            background: "rgba(255,255,255,0.06)",
-                            border: "1px solid rgba(255,255,255,0.1)",
-                            color: "rgba(255,255,255,0.7)", cursor: "pointer",
-                            transition: "background 0.15s, color 0.15s",
-                        }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.background = "rgba(239,68,68,0.12)";
-                            e.currentTarget.style.color = "#f87171";
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                            e.currentTarget.style.color = "rgba(255,255,255,0.7)";
-                        }}
-                    >
-                        <IconClose />
-                    </button>
-                </div>
-
-                {/* Nav links */}
-                <nav aria-label="Mobile navigation links" style={{ padding: "16px 12px 8px" }}>
-                    <p style={{
-                        fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em",
-                        color: "rgba(255,255,255,0.3)", textTransform: "uppercase",
-                        padding: "0 14px", marginBottom: "6px",
-                    }}>
-                        Navigation
-                    </p>
-                    {NAV_LINKS.map(({ href, label }) => (
-                        <Link
-                            key={href}
-                            href={href}
-                            onClick={closeDrawer}
-                            className="nav-mobile-link"
-                        >
-                            {label}
-                        </Link>
-                    ))}
-                </nav>
-
-                <div style={{ height: "1px", background: "rgba(255,255,255,0.05)", margin: "4px 12px" }} />
-
-                {/* Auth section */}
-                <div style={{ padding: "12px 12px", flex: 1 }}>
-                    <p style={{
-                        fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em",
-                        color: "rgba(255,255,255,0.3)", textTransform: "uppercase",
-                        padding: "0 14px", marginBottom: "8px",
-                    }}>
-                        Account
-                    </p>
-                    <MobileAuth
-                        isRegularUser={isRegularUser}
-                        isAdmin={isAdmin}
-                        displayName={displayName}
-                        onClose={closeDrawer}
-                        onLogout={handleLogout}
-                    />
-                </div>
-
-                {/* Drawer footer */}
-                <div style={{
-                    padding: "16px 20px",
-                    borderTop: "1px solid rgba(255,255,255,0.05)",
-                }}>
-                    <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.2)", margin: 0, letterSpacing: "0.02em" }}>
-                        © {new Date().getFullYear()} BittXS. All rights reserved.
-                    </p>
-                </div>
-            </div>
+            <MobileBottomBar isRegularUser={isRegularUser} isAdmin={isAdmin} onLogout={handleLogout} />
         </>
     );
 }

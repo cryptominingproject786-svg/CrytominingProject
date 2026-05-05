@@ -24,7 +24,7 @@ function WhatsAppButton({ phoneNumber = PHONE_NUMBER, message = DEFAULT_MESSAGE,
             rel="noopener noreferrer"
             aria-label="Chat with support on WhatsApp"
             title="Chat with us on WhatsApp"
-            className={`fixed bottom-6 right-6 z-[9999] inline-flex items-center justify-center
+            className={`fixed bottom-24 sm:bottom-6 right-6 z-50 inline-flex items-center justify-center
         w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-green-500 shadow-2xl
         hover:bg-green-400 hover:scale-110 transform transition-all duration-300
         focus:outline-none focus:ring-2 focus:ring-green-300 ${className}`}
