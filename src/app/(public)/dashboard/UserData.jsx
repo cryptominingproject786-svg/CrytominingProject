@@ -395,10 +395,6 @@ function UserData() {
             {/* ── RechargeModal (lazy, only mounted when open) ──────────── */}
             {showRecharge && (
                 <Suspense fallback={<ModalSkeleton />}>
-                    {/*
-                     * closeRecharge is a stable useCallback reference.
-                     * RechargeModal will NEVER re-render because of this prop.
-                     */}
                     <RechargeModal onClose={closeRecharge} />
                 </Suspense>
             )}

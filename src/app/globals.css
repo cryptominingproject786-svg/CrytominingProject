@@ -79,6 +79,11 @@ body {
   }
 }
 
+.h-safe-area-inset-bottom {
+  height: env(safe-area-inset-bottom);
+  min-height: 1rem;
+}
+
 .nav-bottom-bar {
   position: fixed;
   inset: auto 0 0 0;

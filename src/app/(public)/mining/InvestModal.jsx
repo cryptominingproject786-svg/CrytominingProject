@@ -288,8 +288,8 @@ export default function InvestModal() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="invest-modal-title"
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-            style={{ backgroundColor: "rgba(0,0,0,0.75)" }}
+            className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4"
+            style={{ backgroundColor: "rgba(0,0,0,0.75)", zIndex: 90 }}
         >
             {/* Backdrop */}
             <div className="absolute inset-0" onClick={handleClose} aria-hidden="true" />
@@ -304,6 +304,7 @@ export default function InvestModal() {
           border border-white/10
           rounded-t-3xl sm:rounded-3xl
           shadow-2xl shadow-black/60
+          pb-10 sm:pb-12
         "
             >
                 {/* ── Drag handle (mobile) ───────────────────────────── */}
@@ -500,8 +501,8 @@ export default function InvestModal() {
                         <div
                             role="alert"
                             className={`flex items-start gap-2 rounded-xl border px-4 py-3 text-sm ${investmentMessage.type === "success"
-                                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300"
-                                    : "bg-red-500/10 border-red-500/20 text-red-400"
+                                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300"
+                                : "bg-red-500/10 border-red-500/20 text-red-400"
                                 }`}
                         >
                             <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0 mt-0.5">
