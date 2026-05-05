@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "../../../lib/mongoDb";
 import Recharge from "../../../models/Recharge";
+import User from "../../../models/User";
 import { getToken } from "next-auth/jwt";
 
 export const dynamic = "force-dynamic";

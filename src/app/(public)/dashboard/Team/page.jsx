@@ -528,7 +528,7 @@ const ReferralNetwork = React.memo(function ReferralNetwork({ data }) {
                 status: status === "qualified" ? STATUS.QUALIFIED
                     : status === "zero" ? STATUS.ZERO
                         : STATUS.PENDING,
-                showCheck: status === "qualified",
+                showCheck: status !== "pending",
                 label: username?.slice(0, 9) || "",
             };
         }),
@@ -763,25 +763,42 @@ export default function Team() {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const mountedRef = useRef(true);
+
+    const fetchTeamData = useCallback(async () => {
+        if (!mountedRef.current) return;
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            const res = await fetch("/api/user/team", { cache: "no-store" });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json?.error || "Failed to load team data");
+            if (mountedRef.current) setData(json.data);
+        } catch (err) {
+            if (mountedRef.current) setError(err?.message || "Unable to load team data");
+        } finally {
+            if (mountedRef.current) setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
-        let mounted = true;
+        mountedRef.current = true;
+        fetchTeamData();
 
-        (async () => {
-            try {
-                const res = await fetch("/api/user/team");
-                const json = await res.json();
-                if (!res.ok) throw new Error(json?.error || "Failed to load team data");
-                if (mounted) setData(json.data);
-            } catch (err) {
-                if (mounted) setError(err.message);
-            } finally {
-                if (mounted) setLoading(false);
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                fetchTeamData();
             }
-        })();
+        };
 
-        return () => { mounted = false; };
-    }, []);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        return () => {
+            mountedRef.current = false;
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [fetchTeamData]);
 
     return (
         /*

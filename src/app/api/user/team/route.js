@@ -27,7 +27,36 @@ export async function GET(req) {
             .sort({ createdAt: -1 })
             .lean();
 
-        const qualifiedReferralsCount = referrals.filter((ref) => ref.firstInvestmentAt).length;
+        const getReferralStatus = (ref) => {
+            const invested = Boolean(
+                ref.firstInvestmentAt ||
+                ref.investedAmount > 0 ||
+                ref.activeInvestmentsCount > 0
+            );
+
+            if (!invested) {
+                return "pending";
+            }
+
+            return ref.balance === 0 ? "zero" : "qualified";
+        };
+
+        const directReferrals = referrals.map((ref) => {
+            const status = getReferralStatus(ref);
+
+            return {
+                username: ref.username,
+                joinedAt: ref.createdAt,
+                investedAmount: ref.investedAmount ?? 0,
+                balance: ref.balance ?? 0,
+                firstInvestmentAt: ref.firstInvestmentAt || null,
+                referralCount: ref.referralCount ?? 0,
+                status,
+                isQualified: status !== "pending",
+            };
+        });
+
+        const qualifiedReferralsCount = directReferrals.filter((ref) => ref.isQualified).length;
 
         return NextResponse.json(
             {
@@ -36,24 +65,7 @@ export async function GET(req) {
                     teamMembersCount: user.referralCount ?? 0,
                     qualifiedReferralsCount,
                     teamEarnings: user.teamEarnings ?? 0,
-                    directReferrals: referrals.map((ref) => {
-                        const status = ref.firstInvestmentAt
-                            ? ref.balance === 0
-                                ? "zero"
-                                : "qualified"
-                            : "pending";
-
-                        return {
-                            username: ref.username,
-                            joinedAt: ref.createdAt,
-                            investedAmount: ref.investedAmount ?? 0,
-                            balance: ref.balance ?? 0,
-                            firstInvestmentAt: ref.firstInvestmentAt || null,
-                            referralCount: ref.referralCount ?? 0,
-                            status,
-                            isQualified: status === "qualified",
-                        };
-                    }),
+                    directReferrals,
                 },
             },
             { status: 200 }
