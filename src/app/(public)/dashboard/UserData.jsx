@@ -90,7 +90,7 @@ const ActivityCard = React.memo(function ActivityCard({ a }) {
         <article
             aria-labelledby={`activity-title-${a.id}`}
             role="region"
-            className="relative bg-gradient-to-tr from-gray-800 to-black/70 backdrop-blur-md rounded-3xl p-4 sm:p-6 md:p-6 shadow-2xl border border-yellow-400 hover:scale-105 transform transition duration-500 cursor-pointer"
+            className="relative bg-linear-to-tr from-gray-800 to-black/70 backdrop-blur-md rounded-3xl p-4 sm:p-6 md:p-6 shadow-2xl border border-yellow-400 hover:scale-105 transform transition duration-500 cursor-pointer"
         >
             {/* Reward badge */}
             <div className="absolute right-3 sm:right-4 top-3 sm:top-4 inline-flex items-center justify-center bg-yellow-500 text-black font-bold px-3 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm shadow-lg">
@@ -176,11 +176,13 @@ const ModalSkeleton = () => (
 );
 
 // ── UserData (main component) ────────────────────────────────────────────────
-function UserData() {
+function UserData({ initialUserData = {} }) {
     const [showRecharge, setShowRecharge] = useState(false);
-    const [balance, setBalance] = useState(0);
-    const [reservedBalance, setReservedBalance] = useState(0);
-    const [lastConfirmedAmount, setLastConfirmedAmount] = useState(null);
+    const [balance, setBalance] = useState(initialUserData.balance ?? 0);
+    const [reservedBalance, setReservedBalance] = useState(initialUserData.reservedBalance ?? 0);
+    const [lastConfirmedAmount, setLastConfirmedAmount] = useState(
+        initialUserData.lastConfirmedAmount ?? null
+    );
 
     const router = useRouter();
 
@@ -214,16 +216,25 @@ function UserData() {
 
     // ── Effects ───────────────────────────────────────────────────────────────
 
-    /** Initial fetch + drain any pending profit credit that fired before mount. */
+    // ── Initial data or fetch fallback.
     useEffect(() => {
-        fetchUser();
+        if (!initialUserData?.username) {
+            setTimeout(() => {
+                void fetchUser();
+            }, 0);
+        }
+    }, [fetchUser, initialUserData]);
+
+    useEffect(() => {
         if (typeof window !== "undefined" && window.__pendingProfitCredit) {
             const amt = window.__pendingProfitCredit;
-            setBalance((b) => Math.round((b + amt) * 100) / 100);
+            queueMicrotask(() => {
+                setBalance((b) => Math.round((b + amt) * 100) / 100);
+            });
             console.info("applied pending profitCredit on mount", amt);
             window.__pendingProfitCredit = 0;
         }
-    }, [fetchUser]);
+    }, []);
 
     /** Re-fetch after a successful investment so balance reflects the new state. */
     useEffect(() => {
@@ -310,7 +321,7 @@ function UserData() {
                 aria-label="User Dashboard"
                 itemScope
                 itemType="https://schema.org/WebPage"
-                className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black p-4 sm:p-6 md:p-10 text-white flex justify-center items-start"
+                className="min-h-screen bg-linear-to-br from-black via-gray-900 to-black p-4 sm:p-6 md:p-10 text-white flex justify-center items-start"
             >
                 <div className="w-full max-w-7xl flex flex-col gap-8 md:gap-10">
 

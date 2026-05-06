@@ -1,32 +1,30 @@
-import IORedis from "ioredis";
-
-const REDIS_URL = process.env.REDIS_URL;
+import { getRedisClient } from "./redisClient";
 
 // Simple Redis-backed rate limiter with in-memory fallback
 class RateLimiter {
     constructor({ windowMs = 60_000, max = 10 } = {}) {
         this.windowMs = windowMs;
         this.max = max;
-
-        if (REDIS_URL) {
-            this.redis = new IORedis(REDIS_URL);
-        } else {
-            this.redis = null;
-            this.memory = new Map();
-        }
+        this.redis = getRedisClient();
+        this.memory = new Map();
     }
 
     async consume(key) {
         const now = Date.now();
         if (this.redis) {
-            const redisKey = `rl:${key}`;
-            const count = await this.redis.incr(redisKey);
-            if (count === 1) {
-                await this.redis.pexpire(redisKey, this.windowMs);
+            try {
+                const redisKey = `rl:${key}`;
+                const count = await this.redis.incr(redisKey);
+                if (count === 1) {
+                    await this.redis.pexpire(redisKey, this.windowMs);
+                }
+                const ttl = await this.redis.pttl(redisKey);
+                const remaining = Math.max(0, this.max - count);
+                return { allowed: count <= this.max, remaining, reset: now + ttl };
+            } catch (err) {
+                console.warn("[RateLimiter] Redis unavailable, falling back to in-memory", err?.message || err);
+                this.redis = null;
             }
-            const ttl = await this.redis.pttl(redisKey);
-            const remaining = Math.max(0, this.max - count);
-            return { allowed: count <= this.max, remaining, reset: now + ttl };
         }
 
         // In-memory fallback (not suitable for multi-instance production)

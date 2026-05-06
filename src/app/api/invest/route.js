@@ -4,6 +4,7 @@ import User from "../../models/User";
 import Investment from "../../models/Investment";
 import ReferralBonus from "../../models/ReferralBonus";
 import { getAuthToken, getAuthUserId } from "../../lib/authToken";
+import { getCachedJson, setCachedJson, invalidateCache } from "../../lib/cache";
 import mongoose from "mongoose";
 export const dynamic = 'force-dynamic';
 
@@ -106,6 +107,9 @@ export async function POST(req) {
         }
 
         await User.updateOne({ _id: userId }, userUpdate);
+        await invalidateCache(`user:dashboard:${userId}`);
+        await invalidateCache(`user:me:${userId}`);
+        await invalidateCache(`user:investments:${userId}`);
 
         if (isFirstInvestment && user.referredBy) {
             const parentId = user.referredBy;
@@ -182,6 +186,12 @@ export async function GET(req) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        const cacheKey = `user:investments:${userId}`;
+        const cachedInvestments = await getCachedJson(cacheKey);
+        if (cachedInvestments) {
+            return NextResponse.json({ data: cachedInvestments }, { status: 200 });
+        }
+
         await connectDB();
 
         const investments = await Investment.find({ user: userId, status: "active" })
@@ -190,6 +200,7 @@ export async function GET(req) {
             .select("minerName amount dailyProfit totalProfit totalReturn startDate maturityDate claimedProfit status")
             .lean();
 
+        await setCachedJson(cacheKey, investments, 5);
         console.info("/api/invest GET fetched", { user: userId, count: investments.length });
         return NextResponse.json({ data: investments }, { status: 200 });
     } catch (err) {

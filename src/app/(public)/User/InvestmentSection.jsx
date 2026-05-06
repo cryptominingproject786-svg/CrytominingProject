@@ -70,7 +70,7 @@ const InvestmentCard = ({ inv, onClaim, nowTime }) => {
     };
 
     return (
-        <div className="relative bg-gradient-to-br from-gray-900 to-black border border-yellow-400 rounded-3xl p-6 shadow-xl hover:scale-105 transition-all duration-500 flex flex-col gap-4">
+        <div className="relative bg-linear-to-br from-gray-900 to-black border border-yellow-400 rounded-3xl p-6 shadow-xl hover:scale-105 transition-all duration-500 flex flex-col gap-4">
 
             {/* Status badge */}
             <div
@@ -163,17 +163,23 @@ const InvestmentCard = ({ inv, onClaim, nowTime }) => {
 };
 
 // ── InvestmentSection ─────────────────────────────────────────────────────────
-export default function InvestmentSection() {
+export default function InvestmentSection({ initialInvestments = [] }) {
     const dispatch = useDispatch();
     const { data: investments, loading, error } = useSelector(
         (state) => state.investments
     );
-    const [now, setNow] = useState(Date.now());
+    const [now, setNow] = useState(() => Date.now());
 
     useEffect(() => {
         const timer = setInterval(() => setNow(Date.now()), 10000);
         return () => clearInterval(timer);
     }, []);
+
+    useEffect(() => {
+        if (initialInvestments.length > 0 && investments.length === 0) {
+            dispatch(fetchSuccess(initialInvestments));
+        }
+    }, [dispatch, initialInvestments, investments.length]);
 
     // ── Fetch investments ─────────────────────────────────────────────────────
     const fetchInvestments = useCallback(async () => {
@@ -192,10 +198,12 @@ export default function InvestmentSection() {
         }
     }, [dispatch]);
 
-    // ── Initial fetch ─────────────────────────────────────────────────────────
     useEffect(() => {
+        if (initialInvestments.length > 0 && investments.length === 0) {
+            return;
+        }
         fetchInvestments();
-    }, [fetchInvestments]);
+    }, [fetchInvestments, initialInvestments.length, investments.length]);
 
     // ── Re-fetch when a new investment is created ─────────────────────────────
     useEffect(() => {

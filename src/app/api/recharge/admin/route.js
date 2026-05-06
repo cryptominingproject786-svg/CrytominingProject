@@ -2,20 +2,11 @@
 import { NextResponse } from "next/server";
 import connectDB from "../../../lib/mongoDb";
 import Recharge from "../../../models/Recharge";
-import User from "../../../models/User";
 import { getToken } from "next-auth/jwt";
+import { getCachedJson, setCachedJson } from "../../../lib/cache";
+import { measureAsync } from "../../../lib/performanceLogger";
 
 export const dynamic = "force-dynamic";
-
-/**
- * GET /api/recharge/admin?page=1&limit=20
- *
- * Returns a paginated list of recharges with full pagination metadata:
- *   { data, page, limit, total, pageCount, hasMore }
- *
- * Previously this endpoint was missing pageCount / hasMore, causing the
- * client-side Next/Previous buttons to stay permanently disabled.
- */
 export async function GET(req) {
     try {
         // ── Auth ────────────────────────────────────────────────────────────────
@@ -31,41 +22,46 @@ export async function GET(req) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // ── Query params ─────────────────────────────────────────────────────────
         const { searchParams } = new URL(req.url);
-
-        // page is 1-indexed; clamp to a safe minimum of 1
         const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-
-        // limit: default 20, max 100 to avoid oversized payloads
         const limit = Math.min(
             Math.max(1, parseInt(searchParams.get("limit") || "20", 10)),
             100
         );
+        const cacheKey = `admin:recharges:p${page}:l${limit}`;
+        const cached = await getCachedJson(cacheKey);
+        if (cached) {
+            return NextResponse.json(cached, {
+                status: 200,
+                headers: {
+                    "Cache-Control": "private, max-age=10, stale-while-revalidate=20",
+                },
+            });
+        }
 
         const skip = (page - 1) * limit;
 
         await connectDB();
 
-        // ── Run count + data query in parallel for performance ───────────────────
-        const [total, recharges] = await Promise.all([
-            Recharge.countDocuments({}),
-            Recharge.find({})
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(limit)
-                .populate(
-                    "user",
-                    "username email phone balance investedAmount totalEarnings dailyProfit"
-                )
-                .lean(),
+        const [{ result: total }, { result: recharges }] = await Promise.all([
+            measureAsync("admin-recharge-count", () => Recharge.estimatedDocumentCount()),
+            measureAsync("admin-recharge-page", () =>
+                Recharge.find({})
+                    .select("user amount network status createdAt slip")
+                    .sort({ createdAt: -1 })
+                    .skip(skip)
+                    .limit(limit)
+                    .populate(
+                        "user",
+                        "username email phone balance investedAmount totalEarnings dailyProfit"
+                    )
+                    .lean()
+            ),
         ]);
 
-        // ── Derive pagination metadata ────────────────────────────────────────────
         const pageCount = Math.max(1, Math.ceil(total / limit));
         const hasMore = page < pageCount;
 
-        // ── Serialize: strip binary slip.data, expose only hasData flag ──────────
         const serialized = recharges.map((r) => ({
             _id: String(r._id),
             user: r.user
@@ -84,22 +80,26 @@ export async function GET(req) {
             network: r.network,
             status: r.status,
             createdAt: r.createdAt,
-            // Only expose whether a slip exists — never send binary data in list view
             slip: { hasData: !!(r.slip?.data) },
         }));
 
-        return NextResponse.json(
-            {
-                data: serialized,
-                // ── Pagination metadata the client depends on ──────────────────────
-                page,       // current page (1-indexed)
-                limit,      // items per page
-                total,      // total documents in collection
-                pageCount,  // total number of pages
-                hasMore,    // true if there is a next page
+        const payload = {
+            data: serialized,
+            page,
+            limit,
+            total,
+            pageCount,
+            hasMore,
+        };
+
+        await setCachedJson(cacheKey, payload, 60);
+
+        return NextResponse.json(payload, {
+            status: 200,
+            headers: {
+                "Cache-Control": "private, max-age=60, stale-while-revalidate=30",
             },
-            { status: 200 }
-        );
+        });
     } catch (err) {
         console.error("GET /api/recharge/admin error:", err);
         return NextResponse.json({ error: "Server error" }, { status: 500 });

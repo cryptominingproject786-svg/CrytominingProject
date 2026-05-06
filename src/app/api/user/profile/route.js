@@ -4,6 +4,7 @@ import User from "../../../models/User";
 import Recharge from "../../../models/Recharge";
 import { getToken } from "next-auth/jwt";
 import mongoose from "mongoose";
+import { getCachedJson, setCachedJson } from "../../../lib/cache";
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
@@ -12,27 +13,19 @@ export async function GET(req) {
 
         await connectDB();
 
-        // Get the JWT token
         const token = await getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET });
-        console.log("[User-Profile API] 🔑 Token check:", {
-            hasToken: !!token,
-            tokenEmail: token?.email,
-            tokenRole: token?.role
-        });
-
         if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        // ✅ IMPORTANT: Block admin users from accessing user profile endpoint
-        if (token.role === "admin") {
-            console.error(`[User-Profile API] ❌ Access denied: token.role='admin' (users only)`);
-            return NextResponse.json({ error: "Forbidden - This endpoint is for users only" }, { status: 403 });
-        }
-
-        // Determine the user ID
         let userId = token.id || token.sub;
         if (!mongoose.Types.ObjectId.isValid(userId) && token.email) {
             const found = await User.findOne({ email: String(token.email).trim().toLowerCase() }).select("_id");
             if (found) userId = found._id;
+        }
+
+        const cacheKey = `user:profile:${userId}`;
+        const cachedResponse = await getCachedJson(cacheKey);
+        if (cachedResponse) {
+            return NextResponse.json(cachedResponse, { status: 200 });
         }
 
         console.log("[User-Profile API] 🔍 Looking up user:", { userId, email: token.email });
@@ -85,6 +78,8 @@ export async function GET(req) {
                 recharges: items
             }
         };
+
+        await setCachedJson(cacheKey, responseData, 15);
 
         console.log("[User-Profile API] ✅ Returning response:", {
             username: user.username,

@@ -1,37 +1,4 @@
 "use client";
-
-/**
- * AdminClient – Production-grade admin dashboard
- *
- * FIXES (v2):
- *  1. STATUS BUG — Root cause: status values from DB may arrive with leading/
- *     trailing whitespace, mixed-case, or as null/undefined on rows that come
- *     from `initialData` before the first API response. Fixed by:
- *       a. `normalizeStatus()` now trims + lowercases (was already doing this,
- *          but we also guard the render condition with an explicit truthy check).
- *       b. Approve/Reject buttons now rendered when
- *          `isPending(r)` is true — extracted to a named predicate so there
- *          is ONE place to change the logic.
- *       c. Added a debug-friendly `data-status` attribute on each row/card so
- *          you can inspect the raw value in DevTools instantly.
- *
- *  2. slip.hasData — The list API (/api/recharge/admin) must project
- *     `slip.hasData` (a virtual boolean set server-side). If it is absent the
- *     "View Slip" button is permanently disabled. We now fall back to checking
- *     `r.slip != null` so the button is enabled whenever ANY slip object exists.
- *
- *  3. initialData bypass — Previously initialData was written directly into
- *     INIT_STATE, skipping RECHARGES_OK and leaving pageCount/total/hasMore at
- *     their defaults. Now initialData is dispatched through RECHARGES_OK on
- *     first render via a one-shot useEffect.
- *
- *  4. canNextPage guard — unchanged from v1 but now also respects the fixed
- *     total/pageCount values populated from initialData.
- *
- *  5. Action buttons — Approve/Reject are rendered with an accessible
- *     aria-label that includes the recharge ID, improving screen-reader UX.
- */
-
 import React, {
     useReducer,
     useEffect,
@@ -45,8 +12,6 @@ import React, {
 } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-
-// ─── Lazy zoom ────────────────────────────────────────────────────────────────
 const TransformWrapper = lazy(() =>
     import("react-zoom-pan-pinch").then((m) => ({ default: m.TransformWrapper }))
 );
@@ -55,8 +20,6 @@ const TransformComponent = lazy(() =>
         default: m.TransformComponent,
     }))
 );
-
-// ─── TTL cache ────────────────────────────────────────────────────────────────
 const CACHE_TTL = 60_000;
 const _cache = {};
 
@@ -113,28 +76,9 @@ const fmtDtSm = (v) =>
     v
         ? new Date(v).toLocaleDateString([], { month: "short", day: "numeric" })
         : "—";
-
-// ─── FIX 1: Status helpers ────────────────────────────────────────────────────
-/**
- * Normalise a raw status value coming from the API.
- * Trims whitespace and lowercases so "Pending ", "PENDING", "pending" all
- * map to "pending". Returns empty string for null/undefined — never throws.
- */
 const normalizeStatus = (status) =>
     typeof status === "string" ? status.trim().toLowerCase() : "";
-
-/**
- * Single predicate used in BOTH RechargeCard AND RowActions.
- * Having one place means you can never have a card showing buttons while
- * the table row hides them (or vice-versa).
- */
 const isPending = (r) => normalizeStatus(r?.status) === "pending";
-
-/**
- * Returns true when a slip image is available to preview.
- * FIX 2: Falls back to checking whether the slip sub-document exists at all,
- * because some list-API implementations omit the `hasData` virtual field.
- */
 const hasSlipData = (r) =>
     r?.slip?.hasData === true || (r?.slip != null && r?.slip?.hasData !== false);
 
@@ -161,6 +105,29 @@ const INIT_STATE = {
     hasMore: false,
     pageCount: 1,
 };
+
+function initAdminState({ initialData, initialPagination }) {
+    if (!Array.isArray(initialData)) {
+        return INIT_STATE;
+    }
+
+    const page = initialPagination?.page ?? 1;
+    const limit = initialPagination?.limit ?? INIT_STATE.pageSize;
+    const total = initialPagination?.total ?? initialData.length;
+    const pageCount =
+        initialPagination?.pageCount ?? Math.max(1, Math.ceil(total / limit));
+    const hasMore = initialPagination?.hasMore ?? page < pageCount;
+
+    return {
+        ...INIT_STATE,
+        recharges: initialData,
+        page,
+        pageSize: limit,
+        total,
+        pageCount,
+        hasMore,
+    };
+}
 
 function reducer(state, action) {
     switch (action.type) {
@@ -251,9 +218,11 @@ function reducer(state, action) {
 }
 
 // ─── Hook: admin data ─────────────────────────────────────────────────────────
-function useAdminData(dispatch, enabled, page, pageSize) {
+function useAdminData(dispatch, enabled, page, pageSize, initialPagination, initialData) {
     const abortR = useRef(null);
     const abortS = useRef(null);
+    const firstRenderRef = useRef(true);
+    const hasInitialRecharges = Array.isArray(initialData) && initialData.length > 0;
 
     const fetchRecharges = useCallback(
         async (pageIndex = 1, bust = false) => {
@@ -300,13 +269,25 @@ function useAdminData(dispatch, enabled, page, pageSize) {
 
     useEffect(() => {
         if (!enabled) return;
+
+        if (firstRenderRef.current) {
+            firstRenderRef.current = false;
+            if (initialPagination != null && page === 1 && hasInitialRecharges) {
+                fetchStats();
+                return () => {
+                    abortR.current?.abort();
+                    abortS.current?.abort();
+                };
+            }
+        }
+
         fetchRecharges(page);
         fetchStats();
         return () => {
             abortR.current?.abort();
             abortS.current?.abort();
         };
-    }, [enabled, page, fetchRecharges, fetchStats]);
+    }, [enabled, page, fetchRecharges, fetchStats, initialPagination, hasInitialRecharges]);
 
     return { fetchRecharges, fetchStats };
 }
@@ -1014,8 +995,12 @@ const EmptyState = memo(function EmptyState({ colSpan }) {
 });
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function AdminClient({ initialData }) {
-    const [state, dispatch] = useReducer(reducer, INIT_STATE);
+export default function AdminClient({ initialData, initialPagination }) {
+    const [state, dispatch] = useReducer(
+        reducer,
+        { initialData, initialPagination },
+        initAdminState
+    );
 
     const {
         recharges,
@@ -1029,25 +1014,6 @@ export default function AdminClient({ initialData }) {
 
     const { data: session, status } = useSession();
     const router = useRouter();
-
-    // FIX 3: Seed initialData through RECHARGES_OK so pagination fields are set.
-    // The one-shot ref prevents re-seeding on every render.
-    const seededRef = useRef(false);
-    useEffect(() => {
-        if (seededRef.current || !initialData) return;
-        seededRef.current = true;
-        dispatch({
-            type: "RECHARGES_OK",
-            payload: {
-                data: initialData,
-                page: 1,
-                // Let the reducer infer pageCount/hasMore from total.
-                // If initialData carries these fields already, they'll be used.
-                total: initialData.length,
-                limit: INIT_STATE.pageSize,
-            },
-        });
-    }, [initialData]);
 
     const [balanceModal, setBalanceModal] = useState({
         open: false,
@@ -1067,7 +1033,9 @@ export default function AdminClient({ initialData }) {
         dispatch,
         isAdmin,
         state.page,
-        state.pageSize
+        state.pageSize,
+        initialPagination,
+        initialData
     );
 
     // ── Pagination booleans ──────────────────────────────────────────────────────
@@ -1214,6 +1182,7 @@ export default function AdminClient({ initialData }) {
             {
                 title: "Total Users",
                 value: loadingStats ? "…" : fmtNum(stats.totalUsers),
+                onClick: () => router.push("/admin/users"),
             },
             {
                 title: "Total Invested",

@@ -5,10 +5,16 @@ import Investment from "../../../models/Investment";
 import Recharge from "../../../models/Recharge";
 import Withdraw from "../../../models/Withdraw";
 import { getToken } from "next-auth/jwt";
+import { getCachedJson, setCachedJson } from "../../../lib/cache";
 export const dynamic = 'force-dynamic';
 
 export async function GET(req) {
     try {
+        const cachedStats = await getCachedJson("admin:stats");
+        if (cachedStats) {
+            return NextResponse.json({ data: cachedStats }, { status: 200 });
+        }
+
         const token = await getToken({
             req,
             secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.SECRET,
@@ -84,6 +90,7 @@ export async function GET(req) {
             avgInvestmentAmount: investmentStats[0]?.avgAmount || 0,
         };
 
+        await setCachedJson("admin:stats", result, 30);
         return NextResponse.json({ data: result }, { status: 200 });
     } catch (err) {
         console.error("/api/admin/stats error", err);
