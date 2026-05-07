@@ -3,7 +3,6 @@
 import React, { memo, lazy, Suspense, useState, useEffect } from "react";
 import Image from "next/image";
 import UserData from "./UserData";
-import InvestmentSection from "../User/InvestmentSection";
 
 const Miners = lazy(() => import("./Miners"));
 const MembersList = lazy(() => import("./MembersList"));
@@ -114,11 +113,10 @@ export default memo(function DashboardClientShell({ initialUserData, initialInve
 
                 <ImageCarousel />
 
-                <UserData initialUserData={initialUserData} />
-
-                <Suspense fallback={<SectionSkeleton height="h-48" />}>
-                    <InvestmentSection initialInvestments={initialInvestments} />
-                </Suspense>
+                <UserData
+                    initialUserData={initialUserData}
+                    initialInvestments={initialInvestments}
+                />
 
                 <Suspense fallback={<SectionSkeleton height="h-48" />}>
                     <Miners />

@@ -176,7 +176,7 @@ const ModalSkeleton = () => (
 );
 
 // ── UserData (main component) ────────────────────────────────────────────────
-function UserData({ initialUserData = {} }) {
+function UserData({ initialUserData = {}, initialInvestments = [] }) {
     const [showRecharge, setShowRecharge] = useState(false);
     const [balance, setBalance] = useState(initialUserData.balance ?? 0);
     const [reservedBalance, setReservedBalance] = useState(initialUserData.reservedBalance ?? 0);
